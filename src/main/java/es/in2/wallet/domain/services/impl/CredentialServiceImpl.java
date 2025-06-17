@@ -171,6 +171,8 @@ public class CredentialServiceImpl implements CredentialService {
     // Helper to map from Credential entity to DTO
     // ---------------------------------------------------------------------
     private CredentialsBasicInfo mapToCredentialsBasicInfo(Credential credential) {
+        System.out.print("XIVATO 1: "+credential.getJsonVc());
+        System.out.print("XIVATO 2: "+credential.getCredentialData());
         JsonNode jsonVc = parseJsonVc(credential.getJsonVc());
         JsonNode credentialSubject = jsonVc.get("credentialSubject");
         // if there's a 'validUntil' node, parse it

@@ -35,10 +35,10 @@ public class Credential {
     private String credentialFormat;
 
     @Column("credential_data")
-    private String credentialData;
+    private String credentialData; //Revisar log
 
     @Column("json_vc")
-    private String jsonVc;
+    private String jsonVc; //Revisar log
 
     @Column("created_at")
     private Instant createdAt;
