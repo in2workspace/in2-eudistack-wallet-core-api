@@ -1,9 +1,6 @@
 package es.in2.wallet.application.workflows.presentation.impl;
 
-import es.in2.wallet.application.dto.AuthorizationRequestOIDC4VP;
-import es.in2.wallet.application.dto.CredentialsBasicInfo;
-import es.in2.wallet.application.dto.VcSelectorRequest;
-import es.in2.wallet.application.dto.VcSelectorResponse;
+import es.in2.wallet.application.dto.*;
 import es.in2.wallet.application.workflows.presentation.Oid4vpWorkflow;
 import es.in2.wallet.domain.services.*;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +37,7 @@ public class Oid4vpWorkflowImpl implements Oid4vpWorkflow {
     }
 
     @Override
-    public Mono<List<CredentialsBasicInfo>> getSelectableCredentialsRequiredToBuildThePresentation(String processId, String authorizationToken, List<String> scope) {
+    public Mono<List<VerifiableCredential>> getSelectableCredentialsRequiredToBuildThePresentation(String processId, String authorizationToken, List<String> scope) {
         return getUserIdFromToken(authorizationToken)
                 .flatMap(userId -> Flux.fromIterable(scope)
                         .flatMap(element -> {
@@ -54,14 +51,14 @@ public class Oid4vpWorkflowImpl implements Oid4vpWorkflow {
                         })
                         .collectList()  // This will collect all lists into a single list
                         .flatMap(lists -> {
-                            List<CredentialsBasicInfo> allCredentials = new ArrayList<>();
+                            List<VerifiableCredential> allCredentials = new ArrayList<>();
                             lists.forEach(allCredentials::addAll); // Combine all lists into one
                             return Mono.just(allCredentials);
                         })
                 );
     }
 
-    private Mono<VcSelectorRequest> buildSelectableVCsRequest(AuthorizationRequestOIDC4VP authorizationRequestOIDC4VP, List<CredentialsBasicInfo> selectableVCs) {
+    private Mono<VcSelectorRequest> buildSelectableVCsRequest(AuthorizationRequestOIDC4VP authorizationRequestOIDC4VP, List<VerifiableCredential> selectableVCs) {
         return Mono.fromCallable(() -> VcSelectorRequest.builder()
                 .redirectUri(authorizationRequestOIDC4VP.responseUri())
                 .state(authorizationRequestOIDC4VP.state())

@@ -1,5 +1,6 @@
 package es.in2.wallet.infrastructure.core.controller;
 
+import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.application.workflows.presentation.Oid4vpWorkflow;
 import es.in2.wallet.application.workflows.presentation.AttestationExchangeTurnstileWorkflow;
 import es.in2.wallet.application.dto.CredentialsBasicInfo;
@@ -51,13 +52,13 @@ public class VerifiablePresentationController {
     @ApiResponse(responseCode = "200", description = "Verifiable presentation retrieved successfully.")
     @ApiResponse(responseCode = "400", description = "Invalid request.")
     @ApiResponse(responseCode = "500", description = "Internal server error.")
-    public Mono<String> createVerifiablePresentationInCborFormat(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody CredentialsBasicInfo credentialsBasicInfo) {
+    public Mono<String> createVerifiablePresentationInCborFormat(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody VerifiableCredential credential) {
         log.debug("VerifiablePresentationController.createVerifiablePresentationInCborFormat()");
 
         String processId = UUID.randomUUID().toString();
 
         MDC.put("processId", processId);
         return getCleanBearerToken(authorizationHeader)
-                .flatMap(authorizationToken -> attestationExchangeTurnstileWorkflow.createVerifiablePresentationForTurnstile(processId, authorizationToken, credentialsBasicInfo));
+                .flatMap(authorizationToken -> attestationExchangeTurnstileWorkflow.createVerifiablePresentationForTurnstile(processId, authorizationToken, credential));
     }
 }

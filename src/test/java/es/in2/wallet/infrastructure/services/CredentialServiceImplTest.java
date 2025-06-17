@@ -7,6 +7,7 @@ import com.nimbusds.jose.Payload;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.wallet.application.dto.CredentialResponse;
 import es.in2.wallet.application.dto.CredentialsBasicInfo;
+import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.enums.CredentialFormats;
 import es.in2.wallet.domain.enums.CredentialStatus;
@@ -337,7 +338,7 @@ class CredentialServiceImplTest {
         when(credentialRepository.findAllByUserId(userUuid))
                 .thenReturn(Flux.just(c1, c2));
 
-        Mono<List<CredentialsBasicInfo>> result =
+        Mono<List<VerifiableCredential>> result =
                 credentialRepositoryService.getCredentialsByUserId(processId, userUuid.toString());
 
         StepVerifier.create(result)
@@ -438,7 +439,7 @@ class CredentialServiceImplTest {
                 .thenReturn(Flux.just(credential));
         when(objectMapper.readTree(jsonVc)).thenReturn(getJsonNodeCredentialLearCredentialEmployee());
 
-        Mono<List<CredentialsBasicInfo>> result = credentialRepositoryService
+        Mono<List<VerifiableCredential>> result = credentialRepositoryService
                 .getCredentialsByUserIdAndType(processId, userId, requiredType);
 
         StepVerifier.create(result)
@@ -468,7 +469,7 @@ class CredentialServiceImplTest {
                 .thenReturn(Flux.just(credential));
 
         // WHEN
-        Mono<List<CredentialsBasicInfo>> result = credentialRepositoryService
+        Mono<List<VerifiableCredential>> result = credentialRepositoryService
                 .getCredentialsByUserIdAndType(processId, userId, requiredType);
 
         // THEN

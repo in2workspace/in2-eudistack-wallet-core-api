@@ -10,7 +10,7 @@ public record VcSelectorRequest(
         @JsonProperty("redirectUri") String redirectUri,
         @JsonProperty("state") String state,
         @JsonProperty("nonce") String nonce,
-        @JsonProperty("selectableVcList") List<CredentialsBasicInfo> selectableVcList
+        @JsonProperty("selectableVcList") List<VerifiableCredential> selectableVcList
 ) {
 
 }

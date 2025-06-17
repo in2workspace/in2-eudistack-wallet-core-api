@@ -8,6 +8,7 @@ import com.upokecenter.cbor.CBORObject;
 import es.in2.wallet.application.dto.CredentialEntityBuildParams;
 import es.in2.wallet.application.dto.CredentialResponse;
 import es.in2.wallet.application.dto.CredentialsBasicInfo;
+import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.enums.CredentialFormats;
 import es.in2.wallet.domain.enums.CredentialStatus;
@@ -30,6 +31,8 @@ import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static es.in2.wallet.domain.utils.ApplicationConstants.*;
 
@@ -153,10 +156,10 @@ public class CredentialServiceImpl implements CredentialService {
     // Fetch All Credentials by User
     // ---------------------------------------------------------------------
     @Override
-    public Mono<List<CredentialsBasicInfo>> getCredentialsByUserId(String processId, String userId) {
+    public Mono<List<VerifiableCredential>> getCredentialsByUserId(String processId, String userId) {
         return parseStringToUuid(userId, USER_ID)
                 .flatMapMany(credentialRepository::findAllByUserId)
-                .map(this::mapToCredentialsBasicInfo)
+                .map(this::mapToVerifiableCredentials)
                 .onErrorContinue((throwable, raw) ->
                         log.error("[{}] Error while mapping credential {} for user {}",
                                 processId, raw, userId, throwable))
@@ -170,29 +173,34 @@ public class CredentialServiceImpl implements CredentialService {
     // ---------------------------------------------------------------------
     // Helper to map from Credential entity to DTO
     // ---------------------------------------------------------------------
-    private CredentialsBasicInfo mapToCredentialsBasicInfo(Credential credential) {
-        System.out.print("XIVATO 1: "+credential.getJsonVc());
-        System.out.print("XIVATO 2: "+credential.getCredentialData());
+    private VerifiableCredential mapToVerifiableCredentials(Credential credential) {
         JsonNode jsonVc = parseJsonVc(credential.getJsonVc());
+        List<String> context = StreamSupport.stream(jsonVc.get("@context").spliterator(), false)
+                .map(JsonNode::asText)
+                .toList();
+
         JsonNode credentialSubject = jsonVc.get("credentialSubject");
-        // if there's a 'validUntil' node, parse it
-        ZonedDateTime validUntil = null;
-        JsonNode validUntilNode = jsonVc.get("validUntil");
+        String name = credentialSubject.get("name").asText();
+        String description = credentialSubject.get("description").asText();
 
-        if (validUntilNode != null && !validUntilNode.isNull()) {
-            validUntil = parseZonedDateTime(validUntilNode.asText());
-        }
+        JsonNode issuer = jsonVc.get("issuer");
 
-        // Convert the int in DB -> enum constant
-        CredentialStatus status = CredentialStatus.valueOf(credential.getCredentialStatus());
+        String validUntil= jsonVc.get("validUntil").asText();
+        String validFrom = jsonVc.get("validFrom").asText();
 
-        return CredentialsBasicInfo.builder()
+        JsonNode status = jsonVc.get("credentialStatus");
+
+        return VerifiableCredential.builder()
+                .context(context)
                 .id(credential.getCredentialId())
-                .vcType(credential.getCredentialType())   // e.g., ["VerifiableCredential", "SomeOtherType"]
-                .credentialStatus(status)
-                .availableFormats(determineAvailableFormats(credential.getCredentialFormat()))
-                .credentialSubject(credentialSubject)
+                .type(credential.getCredentialType())  // e.g., ["VerifiableCredential", "SomeOtherType"]
+                .name(name)
+                .description(description)
+                .issuer(issuer)
                 .validUntil(validUntil)
+                .validFrom(validFrom)
+                .credentialSubject(credentialSubject)
+                .credentialStatus(status)
                 .build();
     }
 
@@ -200,7 +208,7 @@ public class CredentialServiceImpl implements CredentialService {
     // Filter credentials by user AND type in JWT_VC format
     // ---------------------------------------------------------------------
     @Override
-    public Mono<List<CredentialsBasicInfo>> getCredentialsByUserIdAndType(
+    public Mono<List<VerifiableCredential>> getCredentialsByUserIdAndType(
             String processId,
             String userId,
             String requiredType
@@ -213,7 +221,7 @@ public class CredentialServiceImpl implements CredentialService {
                             && credential.getCredentialFormat().equals(CredentialFormats.JWT_VC.toString());
                     return matchesType && isJwtVc;
                 })
-                .map(this::mapToCredentialsBasicInfo)
+                .map(this::mapToVerifiableCredentials)
                 .collectList()
                 .flatMap(credentialsInfo -> {
                     if (credentialsInfo.isEmpty()) {
@@ -497,33 +505,6 @@ public class CredentialServiceImpl implements CredentialService {
         existingCredential.setCredentialData(credentialResponse.credentials().get(0).credential());
         existingCredential.setUpdatedAt(Instant.now());
         return credentialRepository.save(existingCredential);
-    }
-
-
-    // ---------------------------------------------------------------------
-    // Determine Available Formats for the BasicInfo DTO
-    // ---------------------------------------------------------------------
-    private List<String> determineAvailableFormats(String credentialFormat) {
-        if (credentialFormat == null) {
-            return Collections.emptyList();
-        }
-        try {
-            CredentialFormats formatEnum = CredentialFormats.valueOf(credentialFormat);
-            return List.of(formatEnum.name());
-        } catch (IllegalArgumentException e) {
-            return List.of("UNKNOWN_FORMAT");
-        }
-    }
-
-    // ---------------------------------------------------------------------
-    // Parse ZonedDateTime
-    // ---------------------------------------------------------------------
-    private ZonedDateTime parseZonedDateTime(String dateString) {
-        try {
-            return ZonedDateTime.parse(dateString);
-        } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("Invalid date format for validUntil: " + dateString, e);
-        }
     }
 
     // ---------------------------------------------------------------------

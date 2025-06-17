@@ -1,7 +1,7 @@
 package es.in2.wallet.application.workflows.presentation.impl;
 
+import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.application.workflows.presentation.AttestationExchangeTurnstileWorkflow;
-import es.in2.wallet.application.dto.CredentialsBasicInfo;
 import es.in2.wallet.domain.services.CborGenerationService;
 import es.in2.wallet.domain.services.PresentationService;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +18,9 @@ public class AttestationExchangeTurnstileWorkflowImpl implements AttestationExch
     private final CborGenerationService cborGenerationService;
 
     @Override
-    public Mono<String> createVerifiablePresentationForTurnstile(String processId, String authorizationToken, CredentialsBasicInfo credentialsBasicInfo) {
+    public Mono<String> createVerifiablePresentationForTurnstile(String processId, String authorizationToken, VerifiableCredential credential) {
         return generateAudience()
-                .flatMap(audience -> presentationService.createSignedTurnstileVerifiablePresentation(processId, authorizationToken, credentialsBasicInfo, credentialsBasicInfo.id(), audience)
+                .flatMap(audience -> presentationService.createSignedTurnstileVerifiablePresentation(processId, authorizationToken, credential, credential.id(), audience)
                 )
                 .flatMap(vp -> cborGenerationService.generateCbor(processId, vp));
     }

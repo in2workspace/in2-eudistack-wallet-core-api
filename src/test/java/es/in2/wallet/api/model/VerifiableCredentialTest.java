@@ -24,10 +24,7 @@ class VerifiableCredentialTest {
                 .context(List.of("https://www.w3.org/2018/credentials/v1"))
                 .id("urn:uuid:1234")
                 .issuer(issuerNode)
-                .issuanceDate("2020-01-01T00:00:00Z")
-                .issued("2020-01-01T00:00:00Z")
                 .validFrom("2020-01-01T00:00:00Z")
-                .expirationDate("2021-01-01T00:00:00Z")
                 .credentialSubject(credentialSubjectNode)
                 .build();
 
