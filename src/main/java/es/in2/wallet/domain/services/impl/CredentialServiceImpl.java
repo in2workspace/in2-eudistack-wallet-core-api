@@ -16,6 +16,7 @@ import es.in2.wallet.domain.exceptions.NoSuchVerifiableCredentialException;
 import es.in2.wallet.domain.exceptions.ParseErrorException;
 import es.in2.wallet.domain.repositories.CredentialRepository;
 import es.in2.wallet.domain.services.CredentialService;
+import io.swagger.v3.core.util.Json;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import nl.minvws.encoding.Base45;
@@ -175,19 +176,38 @@ public class CredentialServiceImpl implements CredentialService {
     // ---------------------------------------------------------------------
     private VerifiableCredential mapToVerifiableCredentials(Credential credential) {
         JsonNode jsonVc = parseJsonVc(credential.getJsonVc());
-        List<String> context = StreamSupport.stream(jsonVc.get("@context").spliterator(), false)
-                .map(JsonNode::asText)
-                .toList();
-
+        List<String> context = null;
+        JsonNode contextNode = jsonVc.get("@context");
+        if (contextNode != null && !contextNode.isNull()) {
+            context = StreamSupport.stream(contextNode.spliterator(), false)
+                    .map(JsonNode::asText)
+                    .toList();
+        }
         JsonNode credentialSubject = jsonVc.get("credentialSubject");
-        String name = credentialSubject.get("name").asText();
-        String description = credentialSubject.get("description").asText();
+        String name = null;
+        String description = null;
+        JsonNode nameNode = credentialSubject.get("name");
+        JsonNode descriptionNode = credentialSubject.get("description");
+        if (nameNode != null && !nameNode.isNull()) {
+            name = nameNode.asText();
+        }
+        if (descriptionNode != null && !descriptionNode.isNull()) {
+            description = descriptionNode.asText();
+        }
 
         JsonNode issuer = jsonVc.get("issuer");
 
-        String validUntil= jsonVc.get("validUntil").asText();
-        String validFrom = jsonVc.get("validFrom").asText();
+        String validUntil = null;
+        JsonNode validUntilNode = jsonVc.get("validUntil");
+        if (validUntilNode != null && !validUntilNode.isNull()) {
+            validUntil = validUntilNode.asText();
+        }
 
+        String validFrom = null;
+        JsonNode validFromNode = jsonVc.get("validFrom");
+        if (validFromNode != null && !validFromNode.isNull()) {
+            validFrom = validFromNode.asText();
+        }
         JsonNode status = jsonVc.get("credentialStatus");
 
         return VerifiableCredential.builder()
