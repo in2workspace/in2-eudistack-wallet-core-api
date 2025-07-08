@@ -76,17 +76,16 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                             CredentialIssuerMetadata.CredentialsConfigurationsSupported config =
                                     credentialIssuerMetadata.credentialsConfigurationsSupported().get(credentialConfigurationId);
                             log.info("Configuration: {}", config);
-                            String cryptographicMethod;
+                            Mono<String> jwtMono;
                             if (config != null && config.cryptographicBindingMethodsSupported() != null
                                     && !config.cryptographicBindingMethodsSupported().isEmpty()) {
-                                cryptographicMethod = config.cryptographicBindingMethodsSupported().get(0);
+                                jwtMono = buildAndSignCredentialRequest(oid4vciCredentialService.getNonceValue(), did, credentialIssuerMetadata.credentialIssuer());
                             } else {
-                                cryptographicMethod = null;
+                                jwtMono = Mono.justOrEmpty((String) null);
                             }
                             return retrieveCredentialFormatFromCredentialIssuerMetadataByCredentialConfigurationId(credentialConfigurationId, credentialIssuerMetadata)
-
-                                    .flatMap(format -> buildAndSignCredentialRequest(oid4vciCredentialService.getNonceValue(), did, credentialIssuerMetadata.credentialIssuer())
-                                        .flatMap(jwt -> oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, format, credentialConfigurationId, cryptographicMethod))
+                                    .flatMap(format -> jwtMono
+                                        .flatMap(jwt -> oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, format, credentialConfigurationId))
                                         .flatMap(credentialResponseWithStatus -> handleCredentialResponse(processId, credentialResponseWithStatus, authorizationToken, tokenResponse, credentialIssuerMetadata, format))
                                 );
 

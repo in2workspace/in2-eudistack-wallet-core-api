@@ -74,7 +74,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
                     .cryptographicBindingMethodsSupported(List.of("did:key"))
                     .build();
             Map<String, CredentialIssuerMetadata.CredentialsConfigurationsSupported> credentialConfigurationsSupported = new HashMap<>();
-            credentialConfigurationsSupported.put("LEARCredentialEmployee", configurationsSupported);
+            credentialConfigurationsSupported.put("LEARCredential", configurationsSupported);
             CredentialIssuerMetadata credentialIssuerMetadata = CredentialIssuerMetadata.builder()
                     .credentialIssuer("https://issuer.dome-marketplace.eu")
                     .credentialsConfigurationsSupported(credentialConfigurationsSupported)
@@ -99,7 +99,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
             when(preAuthorizedService.getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken)).thenReturn(Mono.just(tokenResponse));
             when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
-            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0), null)).thenReturn(Mono.just(credentialResponseWithStatus));
+            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse,credentialOffer.credentials().get(0).format())).thenReturn(Mono.just(credentialId));
 
@@ -122,7 +122,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
                     .cryptographicBindingMethodsSupported(List.of("did:key"))
                     .build();
             Map<String, CredentialIssuerMetadata.CredentialsConfigurationsSupported> credentialConfigurationsSupported = new HashMap<>();
-            credentialConfigurationsSupported.put("LEARCredentialEmployee", configurationsSupported);
+            credentialConfigurationsSupported.put("LEARCredential", configurationsSupported);
             CredentialIssuerMetadata credentialIssuerMetadata = CredentialIssuerMetadata.builder()
                     .credentialIssuer("https://issuer.dome-marketplace.eu")
                     .credentialsConfigurationsSupported(credentialConfigurationsSupported)
@@ -147,7 +147,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
             when(preAuthorizedService.getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken)).thenReturn(Mono.just(tokenResponse));
             when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
-            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0), null)).thenReturn(Mono.just(credentialResponseWithStatus));
+            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, credentialOffer.credentials().get(0).format())).thenReturn(Mono.just(credentialId));
 
@@ -171,7 +171,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
                     .cryptographicBindingMethodsSupported(List.of("did:key"))
                     .build();
             Map<String, CredentialIssuerMetadata.CredentialsConfigurationsSupported> credentialConfigurationsSupported = new HashMap<>();
-            credentialConfigurationsSupported.put("LEARCredentialEmployee", configurationsSupported);
+            credentialConfigurationsSupported.put("LEARCredential", configurationsSupported);
             CredentialIssuerMetadata credentialIssuerMetadata = CredentialIssuerMetadata.builder()
                     .credentialIssuer("https://issuer.dome-marketplace.eu")
                     .credentialsConfigurationsSupported(credentialConfigurationsSupported)
@@ -202,7 +202,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
             when(ebsiAuthorisationService.sendTokenRequest("codeVerifier", did, authorisationServerMetadata, mockedMap)).thenReturn(Mono.just(tokenResponse));
             when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
-            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0), null)).thenReturn(Mono.just(credentialResponseWithStatus));
+            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, credentialOffer.credentials().get(0).format())).thenReturn(Mono.just(credentialId));
 
@@ -225,7 +225,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
                     .cryptographicBindingMethodsSupported(List.of("did:key"))
                     .build();
             Map<String, CredentialIssuerMetadata.CredentialsConfigurationsSupported> credentialConfigurationsSupported = new HashMap<>();
-            credentialConfigurationsSupported.put("LEARCredentialEmployee", configurationsSupported);
+            credentialConfigurationsSupported.put("LEARCredential", configurationsSupported);
             CredentialIssuerMetadata credentialIssuerMetadata = CredentialIssuerMetadata.builder()
                     .credentialIssuer("https://issuer.dome-marketplace.eu")
                     .credentialsConfigurationsSupported(credentialConfigurationsSupported)
@@ -255,7 +255,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
             when(ebsiAuthorisationService.sendTokenRequest("codeVerifier", did, authorisationServerMetadata, mockedMap)).thenReturn(Mono.just(tokenResponse));
             when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
-            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0), null)).thenReturn(Mono.just(credentialResponseWithStatus));
+            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, credentialOffer.credentials().get(0).format())).thenReturn(Mono.just(credentialId));
 
@@ -318,7 +318,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwt));
 
             when(oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(),
-                    List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0), "did:key")).thenReturn(Mono.just(credentialResponseWithStatus));
+                    List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
 
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, credentialOffer.credentials().get(0).format())).thenReturn(Mono.just(credentialId));
