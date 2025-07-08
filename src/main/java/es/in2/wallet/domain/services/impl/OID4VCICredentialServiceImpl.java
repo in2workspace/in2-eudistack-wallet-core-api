@@ -34,12 +34,11 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
             TokenResponse tokenResponse,
             CredentialIssuerMetadata credentialIssuerMetadata,
             String format,
-            String credentialConfigurationId,
-            String cryptographicBinding
+            String credentialConfigurationId
     ) {
         String processId = MDC.get(PROCESS_ID);
 
-        return buildCredentialRequest(jwt, format, credentialConfigurationId, cryptographicBinding)
+        return buildCredentialRequest(jwt, format, credentialConfigurationId)
                 .doOnSuccess(request ->
                         log.info("ProcessID: {} - CredentialRequest: {}", processId, request)
                 )
@@ -231,11 +230,11 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
     /**
      * Builds the request object CredentialRequest depending on the format and types.
      */
-    private Mono<?> buildCredentialRequest(String jwt, String format, String credentialConfigurationId, String cryptographicBinding) {
+    private Mono<?> buildCredentialRequest(String jwt, String format, String credentialConfigurationId) {
         try{
             if(credentialConfigurationId != null) {
                 if (format.equals(JWT_VC_JSON)) {
-                    if (cryptographicBinding != null) {
+                    if (jwt != null) {
                         return Mono.just(
                                 CredentialRequest.builder()
                                         .format(format)

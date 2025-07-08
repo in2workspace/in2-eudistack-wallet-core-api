@@ -7,7 +7,7 @@ import reactor.core.publisher.Mono;
 
 
 public interface OID4VCICredentialService {
-    Mono<CredentialResponseWithStatus> getCredential(String jwt, TokenResponse tokenResponse, CredentialIssuerMetadata credentialIssuerMetadata, String format, String credentialConfigurationId, String cryptographicBinding);
+    Mono<CredentialResponseWithStatus> getCredential(String jwt, TokenResponse tokenResponse, CredentialIssuerMetadata credentialIssuerMetadata, String format, String credentialConfigurationId);
     Mono<CredentialResponseWithStatus> getCredentialDomeDeferredCase(String transactionId, String accessToken, String deferredEndpoint);
     String getNonceValue();
 }
