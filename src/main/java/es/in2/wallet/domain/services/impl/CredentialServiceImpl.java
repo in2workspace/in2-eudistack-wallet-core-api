@@ -157,7 +157,7 @@ public class CredentialServiceImpl implements CredentialService {
                 .flatMapMany(credentialRepository::findAllByUserId)
                 .map(this::mapToVerifiableCredential)
                 .onErrorContinue((throwable, raw) ->
-                        log.error("[{}] Error while mapping credential {} for user {}",
+                        log.warn("[{}] Error while mapping credential {} for user {}: invalid credential",
                                 processId, raw, userId, throwable))
                 .collectList()
                 .flatMap(list -> list.isEmpty()
@@ -171,38 +171,22 @@ public class CredentialServiceImpl implements CredentialService {
     // ---------------------------------------------------------------------
     private VerifiableCredential mapToVerifiableCredential(Credential credential) {
         JsonNode jsonVc = parseJsonVc(credential.getJsonVc());
-        List<String> context = null;
         JsonNode contextNode = jsonVc.get("@context");
-        if (contextNode != null && !contextNode.isNull()) {
-            context = StreamSupport.stream(contextNode.spliterator(), false)
-                    .map(JsonNode::asText)
-                    .toList();
-        }
+        List<String> context = StreamSupport.stream(contextNode.spliterator(), false)
+                .map(JsonNode::asText)
+                .toList();
         JsonNode credentialSubject = jsonVc.get("credentialSubject");
-        String name = null;
-        String description = null;
         JsonNode nameNode = credentialSubject.get("name");
         JsonNode descriptionNode = credentialSubject.get("description");
-        if (nameNode != null && !nameNode.isNull()) {
-            name = nameNode.asText();
-        }
-        if (descriptionNode != null && !descriptionNode.isNull()) {
-            description = descriptionNode.asText();
-        }
+        String name = nameNode.asText();
+        String description = descriptionNode.asText();
 
         JsonNode issuer = jsonVc.get("issuer");
-
-        String validUntil = null;
         JsonNode validUntilNode = jsonVc.get("validUntil");
-        if (validUntilNode != null && !validUntilNode.isNull()) {
-            validUntil = validUntilNode.asText();
-        }
-
-        String validFrom = null;
+        String validUntil = validUntilNode.asText();
         JsonNode validFromNode = jsonVc.get("validFrom");
-        if (validFromNode != null && !validFromNode.isNull()) {
-            validFrom = validFromNode.asText();
-        }
+
+        String validFrom = validFromNode.asText();
         JsonNode status = jsonVc.get("credentialStatus");
 
         return VerifiableCredential.builder()
@@ -217,6 +201,7 @@ public class CredentialServiceImpl implements CredentialService {
                 .credentialSubject(credentialSubject)
                 .credentialStatus(status)
                 .build();
+
     }
 
     // ---------------------------------------------------------------------
@@ -238,6 +223,9 @@ public class CredentialServiceImpl implements CredentialService {
                     return matchesType && isJwtVc;
                 })
                 .map(this::mapToVerifiableCredential)
+                .onErrorContinue((throwable, raw) ->
+                        log.warn("[{}] Error while mapping credential {} for user {}: invalid credential",
+                                processId, raw, userId, throwable))
                 .collectList()
                 .flatMap(credentialsInfo -> {
                     if (credentialsInfo.isEmpty()) {

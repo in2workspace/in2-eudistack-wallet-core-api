@@ -153,17 +153,17 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                         credentialResponseWithStatus.credentialResponse(),
                         format
                 ))
-                .doOnNext(credentialUuid ->
-                        log.info("ProcessID: {} - Saved credentialUuid: {}", processId, credentialUuid)
+                .doOnNext(credentialId ->
+                        log.info("ProcessID: {} - Saved credentialId: {}", processId, credentialId)
                 )
                 // If status is ACCEPTED, save deferred metadata; otherwise, skip
-                .flatMap(credentialUuid -> {
+                .flatMap(credentialId -> {
                     if (credentialResponseWithStatus.statusCode().equals(HttpStatus.ACCEPTED)) {
                         log.info("ProcessID: {} - Status ACCEPTED, saving deferred credential metadata", processId);
 
                         return deferredCredentialMetadataService.saveDeferredCredentialMetadata(
                                         processId,
-                                        credentialUuid,
+                                        credentialId,
                                         credentialResponseWithStatus.credentialResponse().transactionId(),
                                         tokenResponse.accessToken(),
                                         credentialIssuerMetadata.deferredCredentialEndpoint()
