@@ -342,7 +342,7 @@ class CredentialServiceImplTest {
                 credentialRepositoryService.getCredentialsByUserId(processId, userUuid.toString());
 
         StepVerifier.create(result)
-                .assertNext(list -> assertEquals(2, list.size()))
+                .assertNext(list -> assertEquals(1, list.size()))
                 .verifyComplete();
     }
 
@@ -459,19 +459,30 @@ class CredentialServiceImplTest {
 
         String credentialId = UUID.randomUUID().toString();
         String jsonVc = """
-        {
-          "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
-          "type": ["VerifiableCredential", "LEARCredentialEmployee"],
-          "credentialSubject": {
-            "mandate": {
-              "mandatee": {
-                "id": "did:example:987"
+            {
+              "@context": ["https://www.w3.org/2018/credentials/v1", "https://example.com/context/extra"],
+              "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
+              "type": ["VerifiableCredential", "LEARCredentialEmployee"],
+              "issuer": {
+                "id": "did:example:issuer"
+              },
+              "validUntil": "2026-12-31T23:59:59Z",
+              "validFrom": "2023-01-01T00:00:00Z",
+              "credentialSubject": {
+                "name": "Credential Name",
+                "description": "Credential Description",
+                "mandate": {
+                  "mandatee": {
+                    "id": "did:example:987"
+                  }
+                }
+              },
+              "credentialStatus": {
+                "id": "https://example.com/status/1234",
+                "type": "StatusList2021Entry"
               }
             }
-          },
-          "validUntil": "2026-12-31T23:59:59Z"
-        }
-        """;
+            """;
 
         Credential credential = Credential.builder()
                 .credentialId(credentialId)
@@ -531,23 +542,59 @@ class CredentialServiceImplTest {
 
     private JsonNode getJsonNodeCredentialLearCredentialEmployee() throws JsonProcessingException {
         String json = """
-                {
-                    "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
-                    "type": [
-                        "VerifiableCredential",
-                        "LEARCredentialEmployee"
-                    ],
-                    "credentialSubject" : {
-                        "mandate" : {
-                            "mandatee": {
-                                "id": "did:example:987"
-                                }
-                            }
-                        }
-                     },
-                     "validUntil": "2026-12-31T23:59:59Z"
+            {
+              "@context": ["https://www.w3.org/2018/credentials/v1", "https://example.com/context/extra"],
+              "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
+              "type": ["VerifiableCredential", "LEARCredentialEmployee"],
+              "issuer": {
+                "id": "did:example:issuer"
+              },
+              "validUntil": "2026-12-31T23:59:59Z",
+              "validFrom": "2023-01-01T00:00:00Z",
+              "credentialSubject": {
+                "name": "Credential Name",
+                "description": "Credential Description",
+                "mandate": {
+                  "mandatee": {
+                    "id": "did:example:987"
+                  }
                 }
-                """;
+              },
+              "credentialStatus": {
+                "id": "https://example.com/status/1234",
+                "type": "StatusList2021Entry"
+              }
+            }
+            """;
+        ObjectMapper objectMapper2 = new ObjectMapper();
+        return objectMapper2.readTree(json);
+    }
+
+    private JsonNode getJsonNodeCredentialLearCredentialEmployee2() throws JsonProcessingException {
+        String json = """
+            {
+              "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
+              "type": ["VerifiableCredential", "LEARCredentialEmployee"],
+              "issuer": {
+                "id": "did:example:issuer"
+              },
+              "validUntil": "2026-12-31T23:59:59Z",
+              "validFrom": "2023-01-01T00:00:00Z",
+              "credentialSubject": {
+                "name": "Credential Name",
+                "description": "Credential Description",
+                "mandate": {
+                  "mandatee": {
+                    "id": "did:example:987"
+                  }
+                }
+              },
+              "credentialStatus": {
+                "id": "https://example.com/status/1234",
+                "type": "StatusList2021Entry"
+              }
+            }
+            """;
         ObjectMapper objectMapper2 = new ObjectMapper();
         return objectMapper2.readTree(json);
     }

@@ -155,10 +155,16 @@ public class CredentialServiceImpl implements CredentialService {
     public Mono<List<VerifiableCredential>> getCredentialsByUserId(String processId, String userId) {
         return parseStringToUuid(userId, USER_ID)
                 .flatMapMany(credentialRepository::findAllByUserId)
-                .map(this::mapToVerifiableCredential)
-                .onErrorContinue((throwable, raw) ->
-                        log.warn("[{}] Error while mapping credential {} for user {}: invalid credential",
-                                processId, raw, userId, throwable))
+                .flatMap(credential -> {
+                    try {
+                        return Mono.just(mapToVerifiableCredential(credential));
+                    } catch (Exception e) {
+                        log.warn("[{}] Error mapping credential {} for user {}",
+                                processId, credential.getCredentialId(), userId, e);
+                        return Mono.empty();
+                    }
+                })
+
                 .collectList()
                 .flatMap(list -> list.isEmpty()
                         ? Mono.error(new NoSuchVerifiableCredentialException(
@@ -171,13 +177,16 @@ public class CredentialServiceImpl implements CredentialService {
     // ---------------------------------------------------------------------
     private VerifiableCredential mapToVerifiableCredential(Credential credential) {
         JsonNode jsonVc = parseJsonVc(credential.getJsonVc());
+
         JsonNode contextNode = jsonVc.get("@context");
         List<String> context = StreamSupport.stream(contextNode.spliterator(), false)
                 .map(JsonNode::asText)
                 .toList();
+
         JsonNode credentialSubject = jsonVc.get("credentialSubject");
         JsonNode nameNode = credentialSubject.get("name");
         JsonNode descriptionNode = credentialSubject.get("description");
+
         String name = nameNode.asText();
         String description = descriptionNode.asText();
 
@@ -185,14 +194,13 @@ public class CredentialServiceImpl implements CredentialService {
         JsonNode validUntilNode = jsonVc.get("validUntil");
         String validUntil = validUntilNode.asText();
         JsonNode validFromNode = jsonVc.get("validFrom");
-
         String validFrom = validFromNode.asText();
         JsonNode status = jsonVc.get("credentialStatus");
 
         return VerifiableCredential.builder()
                 .context(context)
                 .id(credential.getCredentialId())
-                .type(credential.getCredentialType())  // e.g., ["VerifiableCredential", "SomeOtherType"]
+                .type(credential.getCredentialType())
                 .name(name)
                 .description(description)
                 .issuer(issuer)
@@ -203,6 +211,7 @@ public class CredentialServiceImpl implements CredentialService {
                 .build();
 
     }
+
 
     // ---------------------------------------------------------------------
     // Filter credentials by user AND type in JWT_VC format
@@ -222,10 +231,13 @@ public class CredentialServiceImpl implements CredentialService {
                             && credential.getCredentialFormat().equals(CredentialFormats.JWT_VC.toString());
                     return matchesType && isJwtVc;
                 })
-                .map(this::mapToVerifiableCredential)
-                .onErrorContinue((throwable, raw) ->
-                        log.warn("[{}] Error while mapping credential {} for user {}: invalid credential",
-                                processId, raw, userId, throwable))
+                .flatMap(credential -> Mono.fromCallable(() -> mapToVerifiableCredential(credential))
+                        .onErrorResume(e -> {
+                            log.warn("[{}] Error mapping credential {} for user {}",
+                                    processId, credential.getCredentialId(), userId, e);
+                            return Mono.empty();
+                        })
+                )
                 .collectList()
                 .flatMap(credentialsInfo -> {
                     if (credentialsInfo.isEmpty()) {
