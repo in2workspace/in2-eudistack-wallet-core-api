@@ -82,6 +82,27 @@ class DataWorkflowImplTest {
         verify(credentialService).getCredentialsByUserId(processId, userId);
     }
 
+    @Test
+    void getUserVCs_WhenCredentialServiceFails_ShouldReturnError() {
+        String processId = "process1";
+        String userId = "user1";
+
+        RuntimeException simulatedException = new RuntimeException("Database connection failed");
+
+        when(credentialService.getCredentialsByUserId(processId, userId))
+                .thenReturn(Mono.error(simulatedException));
+
+        StepVerifier.create(userDataFacadeService.getAllCredentialsByUserId(processId, userId))
+                .expectErrorMatches(throwable ->
+                        throwable instanceof RuntimeException &&
+                                throwable.getMessage().equals("Database connection failed")
+                )
+                .verify();
+
+        verify(credentialService).getCredentialsByUserId(processId, userId);
+    }
+
+
 
     @Test
     void deleteVerifiableCredentialById_CredentialExists_DeletesCredential() {

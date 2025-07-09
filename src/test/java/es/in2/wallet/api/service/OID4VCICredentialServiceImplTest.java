@@ -232,6 +232,61 @@ class OID4VCICredentialServiceImplTest {
     }
 
     @Test
+    void getCredentialTestWithoutProof_shouldReturnCredentialSuccessfully() throws JsonProcessingException {
+        String jwt = null;
+        TokenResponse tokenResponse = TokenResponse.builder()
+                .accessToken("token")
+                .build();
+
+        CredentialIssuerMetadata credentialIssuerMetadata = CredentialIssuerMetadata.builder()
+                .credentialIssuer("issuer")
+                .credentialEndpoint("endpoint")
+                .build();
+
+        List<CredentialResponse.Credentials> credentialList = List.of(
+                new CredentialResponse.Credentials("credential")
+        );
+
+        CredentialResponse mockCredentialResponse = CredentialResponse.builder()
+                .credentials(credentialList)
+                .build();
+
+        when(objectMapper.writeValueAsString(argThat(argument -> {
+            if (!(argument instanceof CredentialRequest request)) return false;
+            return request.proof() == null;
+        }))).thenReturn("credentialRequest");
+
+        when(objectMapper.readValue(anyString(), eq(CredentialResponse.class)))
+                .thenReturn(mockCredentialResponse);
+
+        ExchangeFunction exchangeFunction = mock(ExchangeFunction.class);
+        ClientResponse clientResponse = ClientResponse.create(HttpStatus.OK)
+                .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
+                .body("credential")
+                .build();
+
+        when(exchangeFunction.exchange(any()))
+                .thenReturn(Mono.just(clientResponse));
+
+        WebClient webClient = WebClient.builder()
+                .exchangeFunction(exchangeFunction)
+                .build();
+
+        when(webClientConfig.centralizedWebClient())
+                .thenReturn(webClient);
+
+        StepVerifier.create(
+                        credentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, JWT_VC_JSON, "LEARCredential")
+                )
+                .expectNextMatches(actual ->
+                        actual.credentialResponse().equals(mockCredentialResponse)
+                                && actual.statusCode().equals(HttpStatus.OK)
+                )
+                .verifyComplete();
+    }
+
+
+    @Test
     void getCredentialFailedCommunicationErrorTest() throws JsonProcessingException {
 
         String jwt = "ey34324";
@@ -367,7 +422,7 @@ class OID4VCICredentialServiceImplTest {
     }
 
     @Test
-    void handleDeferredCredential_errorResponse_shouldReturnError() {
+    void handleDeferredCredential_missingCredentialAndNoNewTransactionId_shouldReturnError() throws Exception {
         String transactionId = "trans123";
         String endpoint = "https://issuer.org/deferred";
 
@@ -375,9 +430,19 @@ class OID4VCICredentialServiceImplTest {
                 .deferredCredentialEndpoint(endpoint)
                 .build();
 
-        ClientResponse clientResponse = ClientResponse.create(HttpStatus.INTERNAL_SERVER_ERROR)
+        CredentialResponse incompleteResponse = CredentialResponse.builder()
+                .transactionId(transactionId)
+                .credentials(List.of(new CredentialResponse.Credentials(null)))
+                .build();
+
+        String responseJson = "incomplete-response";
+
+        when(objectMapper.readValue(responseJson, CredentialResponse.class))
+                .thenReturn(incompleteResponse);
+
+        ClientResponse clientResponse = ClientResponse.create(HttpStatus.OK)
                 .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
-                .body("Internal Server Error")
+                .body(responseJson)
                 .build();
 
         ExchangeFunction exchangeFunction = mock(ExchangeFunction.class);
@@ -386,12 +451,50 @@ class OID4VCICredentialServiceImplTest {
         WebClient webClient = WebClient.builder()
                 .exchangeFunction(exchangeFunction)
                 .build();
+
         when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
 
         StepVerifier.create(credentialService.handleDeferredCredential(transactionId, metadata))
-                .expectErrorMatches(throwable ->
-                        throwable instanceof RuntimeException &&
-                                throwable.getMessage().contains("Error during the deferred credential request"))
+                .expectErrorMatches(error ->
+                        error instanceof IllegalStateException &&
+                                error.getMessage().contains("No credential or new transaction id received in deferred flow")
+                )
+                .verify();
+    }
+
+    @Test
+    void handleDeferredCredential_deserializationFails_shouldReturnFailedDeserializingException() throws Exception {
+        String transactionId = "trans123";
+        String endpoint = "https://issuer.org/deferred";
+
+        CredentialIssuerMetadata metadata = CredentialIssuerMetadata.builder()
+                .deferredCredentialEndpoint(endpoint)
+                .build();
+
+        String badJson = "bad-json-response";
+
+        when(objectMapper.readValue(badJson, CredentialResponse.class))
+                .thenThrow(new JsonProcessingException("Invalid JSON") {});
+
+        ClientResponse clientResponse = ClientResponse.create(HttpStatus.OK)
+                .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
+                .body(badJson)
+                .build();
+
+        ExchangeFunction exchangeFunction = mock(ExchangeFunction.class);
+        when(exchangeFunction.exchange(any())).thenReturn(Mono.just(clientResponse));
+
+        WebClient webClient = WebClient.builder()
+                .exchangeFunction(exchangeFunction)
+                .build();
+
+        when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
+
+        StepVerifier.create(credentialService.handleDeferredCredential(transactionId, metadata))
+                .expectErrorMatches(error ->
+                        error instanceof FailedDeserializingException &&
+                                error.getMessage().contains("Error processing deferred CredentialResponse")
+                )
                 .verify();
     }
 
@@ -573,6 +676,10 @@ class OID4VCICredentialServiceImplTest {
                 )
                 .verify();
     }
+
+
+
+
 
 
 }
