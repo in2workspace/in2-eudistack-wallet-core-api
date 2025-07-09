@@ -83,6 +83,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                             } else {
                                 jwtMono = Mono.justOrEmpty((String) null);
                             }
+                            log.info("JWT: {}", jwtMono);
                             return retrieveCredentialFormatFromCredentialIssuerMetadataByCredentialConfigurationId(credentialConfigurationId, credentialIssuerMetadata)
                                     .flatMap(format -> jwtMono
                                         .flatMap(jwt -> oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, format, credentialConfigurationId))
