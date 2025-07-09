@@ -347,6 +347,53 @@ class CredentialServiceImplTest {
     }
 
     @Test
+    void testGetCredentialsByUserId_NoCredentialsFound_ShouldReturnError() {
+        String processId = "procXYZ";
+        UUID userUuid = UUID.randomUUID();
+
+        when(credentialRepository.findAllByUserId(userUuid))
+                .thenReturn(Flux.empty());
+
+        Mono<List<VerifiableCredential>> result =
+                credentialRepositoryService.getCredentialsByUserId(processId, userUuid.toString());
+
+        StepVerifier.create(result)
+                .expectError(NoSuchVerifiableCredentialException.class)
+                .verify();
+    }
+
+    @Test
+    void testGetCredentialsByUserId_ReadTreeFails_ShouldSkipCredential() throws Exception {
+        String processId = "procXYZ";
+        UUID userUuid = UUID.randomUUID();
+        String credentialId1 = UUID.randomUUID().toString();
+        String badCredentialJson = "invalid-json";
+
+        Credential badCredential = Credential.builder()
+                .id(UUID.randomUUID())
+                .credentialId(credentialId1)
+                .userId(userUuid)
+                .credentialType(List.of("VerifiableCredential"))
+                .credentialStatus(CredentialStatus.VALID.toString())
+                .jsonVc(badCredentialJson)
+                .build();
+        when(objectMapper.readTree(badCredentialJson)).thenThrow(new JsonProcessingException("bad json") {});
+
+        when(credentialRepository.findAllByUserId(userUuid))
+                .thenReturn(Flux.just(badCredential));
+
+        Mono<List<VerifiableCredential>> result =
+                credentialRepositoryService.getCredentialsByUserId(processId, userUuid.toString());
+
+        StepVerifier.create(result)
+                .expectError(NoSuchVerifiableCredentialException.class)
+                .verify();
+    }
+
+
+
+
+    @Test
     void testGetCredentialDataByIdAndUserId_Success() {
         String processId = "procDEF";
         UUID userUuid = UUID.randomUUID();
