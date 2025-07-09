@@ -366,6 +366,92 @@ class OID4VCICredentialServiceImplTest {
                 .verifyComplete();
     }
 
+    @Test
+    void handleDeferredCredential_errorResponse_shouldReturnError() {
+        String transactionId = "trans123";
+        String endpoint = "https://issuer.org/deferred";
+
+        CredentialIssuerMetadata metadata = CredentialIssuerMetadata.builder()
+                .deferredCredentialEndpoint(endpoint)
+                .build();
+
+        ClientResponse clientResponse = ClientResponse.create(HttpStatus.INTERNAL_SERVER_ERROR)
+                .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
+                .body("Internal Server Error")
+                .build();
+
+        ExchangeFunction exchangeFunction = mock(ExchangeFunction.class);
+        when(exchangeFunction.exchange(any())).thenReturn(Mono.just(clientResponse));
+
+        WebClient webClient = WebClient.builder()
+                .exchangeFunction(exchangeFunction)
+                .build();
+        when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
+
+        StepVerifier.create(credentialService.handleDeferredCredential(transactionId, metadata))
+                .expectErrorMatches(throwable ->
+                        throwable instanceof RuntimeException &&
+                                throwable.getMessage().contains("Error during the deferred credential request"))
+                .verify();
+    }
+
+    @Test
+    void handleDeferredCredential_recursiveCallOnNewTransactionId() throws Exception {
+        String originalTransactionId = "trans123";
+        String newTransactionId = "trans456";
+        String endpoint = "https://issuer.org/deferred";
+
+        CredentialIssuerMetadata metadata = CredentialIssuerMetadata.builder()
+                .deferredCredentialEndpoint(endpoint)
+                .build();
+
+        CredentialResponse firstResponse = CredentialResponse.builder()
+                .transactionId(newTransactionId)
+                .credentials(List.of(new CredentialResponse.Credentials(null)))
+                .build();
+
+        CredentialResponse secondResponse = CredentialResponse.builder()
+                .transactionId(newTransactionId)
+                .credentials(List.of(new CredentialResponse.Credentials("final-credential")))
+                .build();
+
+        String firstJson = "first-response";
+        String secondJson = "second-response";
+
+        when(objectMapper.readValue(firstJson, CredentialResponse.class)).thenReturn(firstResponse);
+        when(objectMapper.readValue(secondJson, CredentialResponse.class)).thenReturn(secondResponse);
+
+        ClientResponse firstClientResponse = ClientResponse.create(HttpStatus.OK)
+                .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
+                .body(firstJson)
+                .build();
+
+        ClientResponse secondClientResponse = ClientResponse.create(HttpStatus.OK)
+                .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
+                .body(secondJson)
+                .build();
+
+        ExchangeFunction exchangeFunction = mock(ExchangeFunction.class);
+        when(exchangeFunction.exchange(any()))
+                .thenReturn(Mono.just(firstClientResponse))
+                .thenReturn(Mono.just(secondClientResponse));
+
+        WebClient webClient = WebClient.builder()
+                .exchangeFunction(exchangeFunction)
+                .build();
+
+        when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
+
+        StepVerifier.create(credentialService.handleDeferredCredential(originalTransactionId, metadata))
+                .expectNextMatches(response ->
+                        response.transactionId().equals(newTransactionId) &&
+                                response.credentials().get(0).credential().equals("final-credential")
+                )
+                .verifyComplete();
+    }
+
+
+
 
     @Test
     void getCredentialDomeDeferredCaseTest() throws JsonProcessingException {
