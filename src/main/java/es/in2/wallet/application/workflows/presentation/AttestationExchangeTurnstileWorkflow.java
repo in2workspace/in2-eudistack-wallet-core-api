@@ -3,5 +3,5 @@ import es.in2.wallet.application.dto.VerifiableCredential;
 import reactor.core.publisher.Mono;
 
 public interface AttestationExchangeTurnstileWorkflow {
-    Mono<String> createVerifiablePresentationForTurnstile(String processId, String authorizationToken, VerifiableCredential credential);
+    Mono<String> createVerifiablePresentationForTurnstile(String processId, String authorizationToken, VerifiableCredential verifiableCredential);
 }

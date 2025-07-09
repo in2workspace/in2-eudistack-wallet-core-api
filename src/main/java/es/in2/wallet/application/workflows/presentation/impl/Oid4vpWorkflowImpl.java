@@ -37,6 +37,7 @@ public class Oid4vpWorkflowImpl implements Oid4vpWorkflow {
     }
 
     @Override
+    // TODO: Refactor this method to return Flux<VerifiableCredential> instead of Mono<List<VerifiableCredential>>
     public Mono<List<VerifiableCredential>> getSelectableCredentialsRequiredToBuildThePresentation(String processId, String authorizationToken, List<String> scope) {
         return getUserIdFromToken(authorizationToken)
                 .flatMap(userId -> Flux.fromIterable(scope)

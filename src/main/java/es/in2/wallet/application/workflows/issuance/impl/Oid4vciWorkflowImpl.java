@@ -83,7 +83,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                             } else {
                                 jwtMono = Mono.justOrEmpty((String) null);
                             }
-                            log.info("JWT: {}", jwtMono);
+                            log.debug("JWT: {}", jwtMono);
                             return retrieveCredentialFormatFromCredentialIssuerMetadataByCredentialConfigurationId(credentialConfigurationId, credentialIssuerMetadata)
                                     .flatMap(format -> jwtMono
                                         .flatMap(jwt -> oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, format, credentialConfigurationId))
@@ -154,7 +154,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                         format
                 ))
                 .doOnNext(credentialUuid ->
-                        log.info("ProcessID: {} - Saved credentialUuid: {}", processId, credentialUuid.toString())
+                        log.info("ProcessID: {} - Saved credentialUuid: {}", processId, credentialUuid)
                 )
                 // If status is ACCEPTED, save deferred metadata; otherwise, skip
                 .flatMap(credentialUuid -> {
@@ -169,7 +169,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                         credentialIssuerMetadata.deferredCredentialEndpoint()
                                 )
                                 .doOnNext(deferredUuid ->
-                                        log.info("ProcessID: {} - Deferred credential metadata saved with UUID: {}", processId, deferredUuid.toString())
+                                        log.info("ProcessID: {} - Deferred credential metadata saved with UUID: {}", processId, deferredUuid)
                                 )
                                 .then();
                     } else {

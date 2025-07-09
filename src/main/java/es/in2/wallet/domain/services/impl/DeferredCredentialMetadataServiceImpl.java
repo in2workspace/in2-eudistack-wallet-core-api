@@ -38,7 +38,7 @@ public class DeferredCredentialMetadataServiceImpl implements DeferredCredential
                         .updatedAt(now)
                 .build())
                 .then(Mono.just(credentialId))
-                .doOnSuccess(credentialIdStr -> log.info("[Process ID: {}] Deferred credential metadata for credential ID {} saved successfully.", processId, credentialIdStr));
+                .doOnSuccess(savedCredentialId -> log.info("[Process ID: {}] Deferred credential metadata for credential ID {} saved successfully.", processId, savedCredentialId));
     }
 
     @Override

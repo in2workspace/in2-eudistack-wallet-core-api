@@ -38,6 +38,7 @@ public class VerifiableCredentialController {
     @ApiResponse(responseCode = "200", description = "Verifiable credentials retrieved successfully.")
     @ApiResponse(responseCode = "400", description = "Invalid request.")
     @ApiResponse(responseCode = "500", description = "Internal server error.")
+    // TODO: Refactor this method to return Flux<VerifiableCredential> instead of Mono<List<VerifiableCredential>>
     public Mono<List<VerifiableCredential>> getVerifiableCredentialList(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
         log.debug("VerifiableCredentialController.getVerifiableCredential()");
 

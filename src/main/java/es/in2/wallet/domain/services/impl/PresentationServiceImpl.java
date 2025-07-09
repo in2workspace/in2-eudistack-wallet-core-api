@@ -55,13 +55,13 @@ public class PresentationServiceImpl implements PresentationService {
      * This method retrieves the subject DID from the first VC, constructs an unsigned VP, and signs it.
      *
      * @param authorizationToken   The authorization token to identify the user.
-     * @param credentials The selected VC for the VP.
+     * @param verifiableCredential The selected VC for the VP.
      * @param nonce                A unique nonce for the VP.
      * @param audience             The intended audience of the VP.
      */
     @Override
-    public Mono<String> createSignedTurnstileVerifiablePresentation(String processId, String authorizationToken, VerifiableCredential credentials, String nonce, String audience) {
-        return createSignedVerifiablePresentation(processId, authorizationToken, nonce, audience, List.of(credentials));
+    public Mono<String> createSignedTurnstileVerifiablePresentation(String processId, String authorizationToken, VerifiableCredential verifiableCredential, String nonce, String audience) {
+        return createSignedVerifiablePresentation(processId, authorizationToken, nonce, audience, List.of(verifiableCredential));
     }
 
     private Mono<String> createSignedVerifiablePresentation(

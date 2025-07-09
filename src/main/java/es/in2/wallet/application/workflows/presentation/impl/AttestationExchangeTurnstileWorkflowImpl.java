@@ -18,9 +18,9 @@ public class AttestationExchangeTurnstileWorkflowImpl implements AttestationExch
     private final CborGenerationService cborGenerationService;
 
     @Override
-    public Mono<String> createVerifiablePresentationForTurnstile(String processId, String authorizationToken, VerifiableCredential credential) {
+    public Mono<String> createVerifiablePresentationForTurnstile(String processId, String authorizationToken, VerifiableCredential verifiableCredential) {
         return generateAudience()
-                .flatMap(audience -> presentationService.createSignedTurnstileVerifiablePresentation(processId, authorizationToken, credential, credential.id(), audience)
+                .flatMap(audience -> presentationService.createSignedTurnstileVerifiablePresentation(processId, authorizationToken, verifiableCredential, verifiableCredential.id(), audience)
                 )
                 .flatMap(vp -> cborGenerationService.generateCbor(processId, vp));
     }

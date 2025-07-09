@@ -52,13 +52,13 @@ public class VerifiablePresentationController {
     @ApiResponse(responseCode = "200", description = "Verifiable presentation retrieved successfully.")
     @ApiResponse(responseCode = "400", description = "Invalid request.")
     @ApiResponse(responseCode = "500", description = "Internal server error.")
-    public Mono<String> createVerifiablePresentationInCborFormat(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody VerifiableCredential credential) {
+    public Mono<String> createVerifiablePresentationInCborFormat(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody VerifiableCredential verifiableCredential) {
         log.debug("VerifiablePresentationController.createVerifiablePresentationInCborFormat()");
 
         String processId = UUID.randomUUID().toString();
 
         MDC.put("processId", processId);
         return getCleanBearerToken(authorizationHeader)
-                .flatMap(authorizationToken -> attestationExchangeTurnstileWorkflow.createVerifiablePresentationForTurnstile(processId, authorizationToken, credential));
+                .flatMap(authorizationToken -> attestationExchangeTurnstileWorkflow.createVerifiablePresentationForTurnstile(processId, authorizationToken, verifiableCredential));
     }
 }
