@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import es.in2.wallet.application.dto.CredentialsBasicInfo;
+import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.application.ports.AppConfig;
 import es.in2.wallet.domain.services.CredentialService;
 import es.in2.wallet.domain.services.DidKeyGeneratorService;
@@ -111,7 +112,7 @@ class EbsiConfigTest {
 
         // This scenario: We already have a credential => no new DID is generated
         // We mock 'getCredentialsByUserIdAndType' to return a list with one item
-        CredentialsBasicInfo existingCredInfo = CredentialsBasicInfo.builder()
+        VerifiableCredential existingCredInfo = VerifiableCredential.builder()
                 .id("urn:entities:credential:exampleCredential-xyz")
                 .build();
         when(credentialService.getCredentialsByUserIdAndType(anyString(), eq(userId), eq("ExampleCredential")))
@@ -170,7 +171,7 @@ class EbsiConfigTest {
                 .thenReturn(Mono.just(storedUserUuid));
 
         // We save the new credential
-        UUID newCredentialId = UUID.randomUUID();
+        String newCredentialId = UUID.randomUUID().toString();
         when(credentialService.saveCredential(anyString(), eq(storedUserUuid), any(), anyString()))
                 .thenReturn(Mono.just(newCredentialId));
 

@@ -1,6 +1,7 @@
 package es.in2.wallet.infrastructure.core.controller;
 
 
+import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.infrastructure.core.config.SwaggerConfig;
 import es.in2.wallet.application.workflows.data.DataWorkflow;
 import es.in2.wallet.application.dto.CredentialsBasicInfo;
@@ -37,7 +38,8 @@ public class VerifiableCredentialController {
     @ApiResponse(responseCode = "200", description = "Verifiable credentials retrieved successfully.")
     @ApiResponse(responseCode = "400", description = "Invalid request.")
     @ApiResponse(responseCode = "500", description = "Internal server error.")
-    public Mono<List<CredentialsBasicInfo>> getVerifiableCredentialList(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
+    // TODO: Refactor this method to return Flux<VerifiableCredential> instead of Mono<List<VerifiableCredential>>
+    public Mono<List<VerifiableCredential>> getVerifiableCredentialList(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
         log.debug("VerifiableCredentialController.getVerifiableCredential()");
 
         String processId = UUID.randomUUID().toString();

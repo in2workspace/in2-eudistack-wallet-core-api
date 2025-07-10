@@ -83,6 +83,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                             } else {
                                 jwtMono = Mono.justOrEmpty((String) null);
                             }
+                            log.debug("JWT: {}", jwtMono);
                             return retrieveCredentialFormatFromCredentialIssuerMetadataByCredentialConfigurationId(credentialConfigurationId, credentialIssuerMetadata)
                                     .flatMap(format -> jwtMono
                                         .flatMap(jwt -> oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, format, credentialConfigurationId))
@@ -152,23 +153,23 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                         credentialResponseWithStatus.credentialResponse(),
                         format
                 ))
-                .doOnNext(credentialUuid ->
-                        log.info("ProcessID: {} - Saved credentialUuid: {}", processId, credentialUuid.toString())
+                .doOnNext(credentialId ->
+                        log.info("ProcessID: {} - Saved credentialId: {}", processId, credentialId)
                 )
                 // If status is ACCEPTED, save deferred metadata; otherwise, skip
-                .flatMap(credentialUuid -> {
+                .flatMap(credentialId -> {
                     if (credentialResponseWithStatus.statusCode().equals(HttpStatus.ACCEPTED)) {
                         log.info("ProcessID: {} - Status ACCEPTED, saving deferred credential metadata", processId);
 
                         return deferredCredentialMetadataService.saveDeferredCredentialMetadata(
                                         processId,
-                                        credentialUuid,
+                                        credentialId,
                                         credentialResponseWithStatus.credentialResponse().transactionId(),
                                         tokenResponse.accessToken(),
                                         credentialIssuerMetadata.deferredCredentialEndpoint()
                                 )
                                 .doOnNext(deferredUuid ->
-                                        log.info("ProcessID: {} - Deferred credential metadata saved with UUID: {}", processId, deferredUuid.toString())
+                                        log.info("ProcessID: {} - Deferred credential metadata saved with UUID: {}", processId, deferredUuid)
                                 )
                                 .then();
                     } else {

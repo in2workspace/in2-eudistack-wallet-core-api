@@ -1,5 +1,6 @@
 package es.in2.wallet.api.facade;
 
+import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.application.workflows.presentation.impl.AttestationExchangeTurnstileWorkflowImpl;
 import es.in2.wallet.domain.exceptions.ParseErrorException;
 import es.in2.wallet.application.dto.CredentialsBasicInfo;
@@ -30,11 +31,11 @@ class AttestationExchangeTurnstileWorkflowImplTest {
         String audience = "vpTurnstile";
         String expectedVp = "vp";
         String expectedCBOR = "vp_cbor";
-        CredentialsBasicInfo credentialsBasicInfo = CredentialsBasicInfo.builder().id("id").build();
-        when(presentationService.createSignedTurnstileVerifiablePresentation(processId, authorizationToken, credentialsBasicInfo, credentialsBasicInfo.id(), audience)).thenReturn(Mono.just("vp"));
+        VerifiableCredential credential = VerifiableCredential.builder().id("id").build();
+        when(presentationService.createSignedTurnstileVerifiablePresentation(processId, authorizationToken, credential, credential.id(), audience)).thenReturn(Mono.just("vp"));
         when(cborGenerationService.generateCbor(processId, expectedVp)).thenReturn(Mono.just("vp_cbor"));
 
-        StepVerifier.create(credentialPresentationForTurnstileServiceFacade.createVerifiablePresentationForTurnstile(processId, authorizationToken, credentialsBasicInfo))
+        StepVerifier.create(credentialPresentationForTurnstileServiceFacade.createVerifiablePresentationForTurnstile(processId, authorizationToken, credential))
                 .expectNext(expectedCBOR)
                 .verifyComplete();
 
@@ -45,11 +46,11 @@ class AttestationExchangeTurnstileWorkflowImplTest {
         String authorizationToken = "authToken";
         String audience = "vpTurnstile";
         String expectedVp = "vp";
-        CredentialsBasicInfo credentialsBasicInfo = CredentialsBasicInfo.builder().id("id").build();
-        when(presentationService.createSignedTurnstileVerifiablePresentation(processId, authorizationToken, credentialsBasicInfo, credentialsBasicInfo.id(), audience)).thenReturn(Mono.just("vp"));
+        VerifiableCredential credential = VerifiableCredential.builder().id("id").build();
+        when(presentationService.createSignedTurnstileVerifiablePresentation(processId, authorizationToken, credential, credential.id(), audience)).thenReturn(Mono.just("vp"));
         when(cborGenerationService.generateCbor(processId, expectedVp)).thenThrow(new ParseErrorException("Failed to parse token payload"));
 
-        StepVerifier.create(credentialPresentationForTurnstileServiceFacade.createVerifiablePresentationForTurnstile(processId, authorizationToken, credentialsBasicInfo))
+        StepVerifier.create(credentialPresentationForTurnstileServiceFacade.createVerifiablePresentationForTurnstile(processId, authorizationToken, credential))
                 .expectErrorMatches(error -> error instanceof ParseErrorException && error.getMessage().contains("Failed to parse token payload"))
                 .verify();
 

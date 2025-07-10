@@ -1,9 +1,6 @@
 package es.in2.wallet.api.facade;
 
-import es.in2.wallet.application.dto.AuthorizationRequestOIDC4VP;
-import es.in2.wallet.application.dto.CredentialsBasicInfo;
-import es.in2.wallet.application.dto.VcSelectorRequest;
-import es.in2.wallet.application.dto.VcSelectorResponse;
+import es.in2.wallet.application.dto.*;
 import es.in2.wallet.application.workflows.presentation.impl.Oid4vpWorkflowImpl;
 import es.in2.wallet.domain.services.*;
 import es.in2.wallet.domain.utils.ApplicationUtils;
@@ -51,7 +48,7 @@ class Oid4vpWorkflowImplTest {
                     .state("state")
                     .build();
 
-            CredentialsBasicInfo credentialsBasicInfo = CredentialsBasicInfo.builder().build();
+            VerifiableCredential credentialsBasicInfo = VerifiableCredential.builder().build();
 
             VcSelectorRequest expectedVcSelectorRequest = VcSelectorRequest.builder()
                     .redirectUri("responseUri")

@@ -20,7 +20,7 @@ public class Credential {
     private UUID id;
 
     @Column("credential_id")
-    private UUID credentialId;
+    private String credentialId;
 
     @Column("user_id")
     private UUID userId;

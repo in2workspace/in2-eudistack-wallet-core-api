@@ -6,6 +6,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.wallet.application.dto.CredentialsBasicInfo;
 import es.in2.wallet.application.dto.VcSelectorResponse;
+import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.application.dto.VerifiablePresentation;
 import es.in2.wallet.application.ports.AppConfig;
 import es.in2.wallet.domain.services.CredentialService;
@@ -54,13 +55,13 @@ public class PresentationServiceImpl implements PresentationService {
      * This method retrieves the subject DID from the first VC, constructs an unsigned VP, and signs it.
      *
      * @param authorizationToken   The authorization token to identify the user.
-     * @param credentialsBasicInfo The selected VC for the VP.
+     * @param verifiableCredential The selected VC for the VP.
      * @param nonce                A unique nonce for the VP.
      * @param audience             The intended audience of the VP.
      */
     @Override
-    public Mono<String> createSignedTurnstileVerifiablePresentation(String processId, String authorizationToken, CredentialsBasicInfo credentialsBasicInfo, String nonce, String audience) {
-        return createSignedVerifiablePresentation(processId, authorizationToken, nonce, audience, List.of(credentialsBasicInfo));
+    public Mono<String> createSignedTurnstileVerifiablePresentation(String processId, String authorizationToken, VerifiableCredential verifiableCredential, String nonce, String audience) {
+        return createSignedVerifiablePresentation(processId, authorizationToken, nonce, audience, List.of(verifiableCredential));
     }
 
     private Mono<String> createSignedVerifiablePresentation(
@@ -68,7 +69,7 @@ public class PresentationServiceImpl implements PresentationService {
             String authorizationToken,
             String nonce,
             String audience,
-            List<CredentialsBasicInfo> selectedVcList
+            List<VerifiableCredential> selectedVcList
     ) {
         log.info("Starting to create Signed Verifiable Presentation for processId: {}", processId);
 
@@ -120,7 +121,7 @@ public class PresentationServiceImpl implements PresentationService {
      *
      * @param selectedVcList       The selected VCs.
      */
-    private Mono<List<String>> getVerifiableCredentials(String processId, String userId, List<CredentialsBasicInfo> selectedVcList) {
+    private Mono<List<String>> getVerifiableCredentials(String processId, String userId, List<VerifiableCredential> selectedVcList) {
         return Flux.fromIterable(selectedVcList)
                 .flatMap(credential -> credentialService.getCredentialDataByIdAndUserId(processId,userId, credential.id()))
                 .collectList();

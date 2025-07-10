@@ -38,13 +38,12 @@ class DeferredCredentialDomeProfileWorkflowImplTest {
         String processId = "processId";
         String userId = UUID.randomUUID().toString();
         String credentialId = UUID.randomUUID().toString();
-        UUID credentialUuid = UUID.fromString(credentialId);
         UUID transactionUuid = UUID.randomUUID();
         String accessToken = "access123";
         String deferredEndpoint = "https://example.com/callback";
 
         DeferredCredentialMetadata deferredCredentialMetadata = DeferredCredentialMetadata.builder()
-                .credentialId(credentialUuid)
+                .credentialId(credentialId)
                 .transactionId(transactionUuid)
                 .accessToken(accessToken)
                 .deferredEndpoint(deferredEndpoint)
@@ -82,14 +81,13 @@ class DeferredCredentialDomeProfileWorkflowImplTest {
         String processId = "processId";
         String userId = UUID.randomUUID().toString();
         String credentialId = UUID.randomUUID().toString();
-        UUID credentialUuid = UUID.fromString(credentialId);
         UUID transactionUuid = UUID.randomUUID();
         String newTransactionUuid = UUID.randomUUID().toString();
         String accessToken = "access123";
         String deferredEndpoint = "https://example.com/callback";
 
         DeferredCredentialMetadata deferredCredentialMetadata = DeferredCredentialMetadata.builder()
-                .credentialId(credentialUuid)
+                .credentialId(credentialId)
                 .transactionId(transactionUuid)
                 .accessToken(accessToken)
                 .deferredEndpoint(deferredEndpoint)

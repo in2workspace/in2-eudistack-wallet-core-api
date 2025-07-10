@@ -9,5 +9,5 @@ import java.util.UUID;
 
 @Repository
 public interface DeferredCredentialMetadataRepository extends ReactiveCrudRepository<DeferredCredentialMetadata, UUID> {
-    Mono<DeferredCredentialMetadata> findByCredentialId(UUID credentialId);
+    Mono<DeferredCredentialMetadata> findByCredentialId(String credentialId);
 }

@@ -88,7 +88,7 @@ class Oid4vciWorkflowImplTest {
 
             String userIdStr = UUID.randomUUID().toString();
             UUID userUuid = UUID.fromString(userIdStr);
-            UUID credentialId = UUID.randomUUID();
+            String credentialId = UUID.randomUUID().toString();
 
             when(getUserIdFromToken(authorizationToken)).thenReturn(Mono.just(userIdStr));
             when(credentialOfferService.getCredentialOfferFromCredentialOfferUri(processId, qrContent)).thenReturn(Mono.just(credentialOffer));
@@ -163,7 +163,7 @@ class Oid4vciWorkflowImplTest {
 
             String userIdStr = UUID.randomUUID().toString();
             UUID userUuid = UUID.fromString(userIdStr);
-            UUID credentialId = UUID.randomUUID();
+            String credentialId = UUID.randomUUID().toString();
 
             when(getUserIdFromToken(authorizationToken)).thenReturn(Mono.just(userIdStr));
             when(credentialOfferService.getCredentialOfferFromCredentialOfferUri(processId, qrContent)).thenReturn(Mono.just(credentialOffer));
@@ -220,7 +220,7 @@ class Oid4vciWorkflowImplTest {
 
             String userIdStr = UUID.randomUUID().toString();
             UUID userUuid = UUID.fromString(userIdStr);
-            UUID credentialId = UUID.randomUUID();
+            String credentialId = UUID.randomUUID().toString();
 
             when(getUserIdFromToken(authorizationToken)).thenReturn(Mono.just(userIdStr));
             when(credentialOfferService.getCredentialOfferFromCredentialOfferUri(processId, qrContent)).thenReturn(Mono.just(credentialOffer));

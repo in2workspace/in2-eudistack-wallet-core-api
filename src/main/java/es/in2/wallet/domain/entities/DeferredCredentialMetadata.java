@@ -22,7 +22,7 @@ public class DeferredCredentialMetadata {
     private UUID transactionId;
 
     @Column("credential_id")
-    private UUID credentialId;
+    private String credentialId;
 
     @Column("access_token")
     private String accessToken;
