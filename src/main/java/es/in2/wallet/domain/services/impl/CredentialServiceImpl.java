@@ -164,7 +164,6 @@ public class CredentialServiceImpl implements CredentialService {
                         return Mono.empty();
                     }
                 })
-
                 .collectList()
                 .flatMap(list -> list.isEmpty()
                         ? Mono.error(new NoSuchVerifiableCredentialException(
@@ -231,13 +230,15 @@ public class CredentialServiceImpl implements CredentialService {
                             && credential.getCredentialFormat().equals(CredentialFormats.JWT_VC.toString());
                     return matchesType && isJwtVc;
                 })
-                .flatMap(credential -> Mono.fromCallable(() -> mapToVerifiableCredential(credential))
-                        .onErrorResume(e -> {
-                            log.warn("[{}] Error mapping credential {} for user {}",
-                                    processId, credential.getCredentialId(), userId, e);
-                            return Mono.empty();
-                        })
-                )
+                .flatMap(credential -> {
+                    try {
+                        return Mono.just(mapToVerifiableCredential(credential));
+                    } catch (Exception e) {
+                        log.warn("[{}] Error mapping credential {} for user {}",
+                                processId, credential.getCredentialId(), userId, e);
+                        return Mono.empty();
+                    }
+                })
                 .collectList()
                 .flatMap(credentialsInfo -> {
                     if (credentialsInfo.isEmpty()) {
