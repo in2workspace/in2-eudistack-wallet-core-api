@@ -176,35 +176,23 @@ public class CredentialServiceImpl implements CredentialService {
     // ---------------------------------------------------------------------
     private VerifiableCredential mapToVerifiableCredential(Credential credential) {
         JsonNode jsonVc = parseJsonVc(credential.getJsonVc());
-        System.out.println("XIVATO:" + jsonVc);
-
-        List<String> context = Optional.ofNullable(jsonVc.get("@context"))
-                .map(node -> StreamSupport.stream(node.spliterator(), false)
-                        .map(JsonNode::asText)
-                        .toList())
-                .orElse(List.of());
-
-        JsonNode credentialSubject = Optional.ofNullable(jsonVc.get("credentialSubject")).orElse(objectMapper.createObjectNode());
-
-        String name = Optional.ofNullable(credentialSubject.get("name"))
+        JsonNode contextNode = jsonVc.get("@context");
+        List<String> context = StreamSupport.stream(contextNode.spliterator(), false)
                 .map(JsonNode::asText)
-                .orElse("");
+                .toList();
+        JsonNode credentialSubject = jsonVc.get("credentialSubject");
+        JsonNode nameNode = credentialSubject.get("name");
+        JsonNode descriptionNode = credentialSubject.get("description");
 
-        String description = Optional.ofNullable(credentialSubject.get("description"))
-                .map(JsonNode::asText)
-                .orElse("");
+        String name = nameNode.asText();
+        String description = descriptionNode.asText();
 
-        JsonNode issuer = Optional.ofNullable(jsonVc.get("issuer")).orElse(objectMapper.createObjectNode());
-
-        String validUntil = Optional.ofNullable(jsonVc.get("validUntil"))
-                .map(JsonNode::asText)
-                .orElse("");
-
-        String validFrom = Optional.ofNullable(jsonVc.get("validFrom"))
-                .map(JsonNode::asText)
-                .orElse("");
-
-        JsonNode status = Optional.ofNullable(jsonVc.get("credentialStatus")).orElse(objectMapper.createObjectNode());
+        JsonNode issuer = jsonVc.get("issuer");
+        JsonNode validUntilNode = jsonVc.get("validUntil");
+        String validUntil = validUntilNode.asText();
+        JsonNode validFromNode = jsonVc.get("validFrom");
+        String validFrom = validFromNode.asText();
+        JsonNode status = jsonVc.get("credentialStatus");
 
         return VerifiableCredential.builder()
                 .context(context)

@@ -84,9 +84,14 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                 jwtMono = Mono.empty();
                             }
                             log.debug("JWT: {}", jwtMono);
-                            return retrieveCredentialFormatFromCredentialIssuerMetadataByCredentialConfigurationId(credentialConfigurationId, credentialIssuerMetadata)
-                                    .flatMap(format -> oid4vciCredentialService.getCredential(String.valueOf(jwtMono), tokenResponse, credentialIssuerMetadata, format, credentialConfigurationId)
-                                    .flatMap(credentialResponseWithStatus -> handleCredentialResponse(processId, credentialResponseWithStatus, authorizationToken, tokenResponse, credentialIssuerMetadata, format))
+                            return jwtMono.flatMap(jwt ->
+                                    retrieveCredentialFormatFromCredentialIssuerMetadataByCredentialConfigurationId(credentialConfigurationId, credentialIssuerMetadata)
+                                            .flatMap(format ->
+                                                    oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, format, credentialConfigurationId)
+                                                            .flatMap(credentialResponseWithStatus ->
+                                                                    handleCredentialResponse(processId, credentialResponseWithStatus, authorizationToken, tokenResponse, credentialIssuerMetadata, format)
+                                                            )
+                                            )
                             );
 
                         })
@@ -125,7 +130,6 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
     private Mono<String> retrieveCredentialFormatFromCredentialIssuerMetadataByCredentialConfigurationId(
             String credentialConfigurationId, CredentialIssuerMetadata credentialIssuerMetadata) {
-        System.out.println("XIVATO 2");
         return Mono.justOrEmpty(credentialIssuerMetadata.credentialsConfigurationsSupported())
                 .map(configurationsSupported -> configurationsSupported.get(credentialConfigurationId))
                 .map(CredentialIssuerMetadata.CredentialsConfigurationsSupported::format)
