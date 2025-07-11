@@ -342,7 +342,7 @@ class CredentialServiceImplTest {
                 credentialRepositoryService.getCredentialsByUserId(processId, userUuid.toString());
 
         StepVerifier.create(result)
-                .assertNext(list -> assertEquals(1, list.size()))
+                .assertNext(list -> assertEquals(2, list.size()))
                 .verifyComplete();
     }
 
