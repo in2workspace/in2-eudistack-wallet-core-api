@@ -181,18 +181,24 @@ public class CredentialServiceImpl implements CredentialService {
                 .map(JsonNode::asText)
                 .toList();
         JsonNode credentialSubject = jsonVc.get("credentialSubject");
-        JsonNode nameNode = credentialSubject.get("name");
-        JsonNode descriptionNode = credentialSubject.get("description");
+        String name = Optional.ofNullable(credentialSubject.get("name"))
+                .map(JsonNode::asText)
+                .orElse("");
+        String description = Optional.ofNullable(credentialSubject.get("description"))
+                .map(JsonNode::asText)
+                .orElse("");
 
-        String name = nameNode.asText();
-        String description = descriptionNode.asText();
+        JsonNode issuer = Optional.ofNullable(jsonVc.get("issuer")).orElse(objectMapper.createObjectNode());
 
-        JsonNode issuer = jsonVc.get("issuer");
-        JsonNode validUntilNode = jsonVc.get("validUntil");
-        String validUntil = validUntilNode.asText();
-        JsonNode validFromNode = jsonVc.get("validFrom");
-        String validFrom = validFromNode.asText();
-        JsonNode status = jsonVc.get("credentialStatus");
+        String validUntil = Optional.ofNullable(jsonVc.get("validUntil"))
+                .map(JsonNode::asText)
+                .orElse("");
+
+        String validFrom = Optional.ofNullable(jsonVc.get("validFrom"))
+                .map(JsonNode::asText)
+                .orElse("");
+
+        JsonNode status = Optional.ofNullable(jsonVc.get("credentialStatus")).orElse(objectMapper.createObjectNode());
 
         return VerifiableCredential.builder()
                 .context(context)
