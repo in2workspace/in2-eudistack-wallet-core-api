@@ -232,6 +232,7 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
      */
     private Mono<?> buildCredentialRequest(String jwt, String format, String credentialConfigurationId) {
         try{
+            System.out.println("XIVATO 1");
             if(credentialConfigurationId != null) {
                 if (format.equals(JWT_VC_JSON)) {
                     if (jwt != null) {
