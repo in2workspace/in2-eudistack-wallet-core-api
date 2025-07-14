@@ -177,13 +177,12 @@ public class CredentialServiceImpl implements CredentialService {
     private VerifiableCredential mapToVerifiableCredential(Credential credential) {
         JsonNode jsonVc = parseJsonVc(credential.getJsonVc());
 
-        List<String> context = Optional.ofNullable(jsonVc.get("@context"))
-                .map(node -> StreamSupport.stream(node.spliterator(), false)
-                        .map(JsonNode::asText)
-                        .toList())
-                .orElse(List.of());
+        JsonNode contextNode = jsonVc.get("@context");
+        List<String> context = StreamSupport.stream(contextNode.spliterator(), false)
+                .map(JsonNode::asText)
+                .toList();
 
-        JsonNode credentialSubject = Optional.ofNullable(jsonVc.get("credentialSubject")).orElse(objectMapper.createObjectNode());
+        JsonNode credentialSubject = jsonVc.get("credentialSubject");
 
         String name = Optional.ofNullable(credentialSubject.get("name"))
                 .map(JsonNode::asText)
