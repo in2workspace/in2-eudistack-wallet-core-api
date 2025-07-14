@@ -212,6 +212,7 @@ public class EbsiConfig {
         String credentialId = UUID.randomUUID().toString();
         String plainJsonVc = """
         {
+          "@context": ["https://www.w3.org/2018/credentials/v1", "https://example.com/context/extra"],
           "id": "%s",
           "type": ["VerifiableCredential", "ExampleCredential"],
           "credentialSubject": {
