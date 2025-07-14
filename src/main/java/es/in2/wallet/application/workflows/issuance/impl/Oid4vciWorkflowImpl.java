@@ -81,7 +81,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                     && !config.cryptographicBindingMethodsSupported().isEmpty()) {
                                 jwtMono = buildAndSignCredentialRequest(oid4vciCredentialService.getNonceValue(), did, credentialIssuerMetadata.credentialIssuer());
                             } else {
-                                jwtMono = Mono.empty();
+                                jwtMono = Mono.just("");
                             }
                             log.debug("JWT: {}", jwtMono);
                             return jwtMono.flatMap(jwt ->

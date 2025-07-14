@@ -235,7 +235,7 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
         try{
             if(credentialConfigurationId != null) {
                 if (format.equals(JWT_VC_JSON)) {
-                    if (jwt != null) {
+                    if (jwt != null && !jwt.isBlank()) {
                         return Mono.just(
                                 CredentialRequest.builder()
                                         .format(format)
