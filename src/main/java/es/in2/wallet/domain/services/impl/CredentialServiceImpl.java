@@ -164,7 +164,6 @@ public class CredentialServiceImpl implements CredentialService {
                         return Mono.empty();
                     }
                 })
-
                 .collectList()
                 .flatMap(list -> list.isEmpty()
                         ? Mono.error(new NoSuchVerifiableCredentialException(
@@ -184,18 +183,26 @@ public class CredentialServiceImpl implements CredentialService {
                 .toList();
 
         JsonNode credentialSubject = jsonVc.get("credentialSubject");
-        JsonNode nameNode = credentialSubject.get("name");
-        JsonNode descriptionNode = credentialSubject.get("description");
 
-        String name = nameNode.asText();
-        String description = descriptionNode.asText();
+        String name = Optional.ofNullable(credentialSubject.get("name"))
+                .map(JsonNode::asText)
+                .orElse("");
 
-        JsonNode issuer = jsonVc.get("issuer");
-        JsonNode validUntilNode = jsonVc.get("validUntil");
-        String validUntil = validUntilNode.asText();
-        JsonNode validFromNode = jsonVc.get("validFrom");
-        String validFrom = validFromNode.asText();
-        JsonNode status = jsonVc.get("credentialStatus");
+        String description = Optional.ofNullable(credentialSubject.get("description"))
+                .map(JsonNode::asText)
+                .orElse("");
+
+        JsonNode issuer = Optional.ofNullable(jsonVc.get("issuer")).orElse(objectMapper.createObjectNode());
+
+        String validUntil = Optional.ofNullable(jsonVc.get("validUntil"))
+                .map(JsonNode::asText)
+                .orElse("");
+
+        String validFrom = Optional.ofNullable(jsonVc.get("validFrom"))
+                .map(JsonNode::asText)
+                .orElse("");
+
+        JsonNode status = Optional.ofNullable(jsonVc.get("credentialStatus")).orElse(objectMapper.createObjectNode());
 
         return VerifiableCredential.builder()
                 .context(context)
@@ -209,8 +216,8 @@ public class CredentialServiceImpl implements CredentialService {
                 .credentialSubject(credentialSubject)
                 .credentialStatus(status)
                 .build();
-
     }
+
 
 
     // ---------------------------------------------------------------------
@@ -231,13 +238,15 @@ public class CredentialServiceImpl implements CredentialService {
                             && credential.getCredentialFormat().equals(CredentialFormats.JWT_VC.toString());
                     return matchesType && isJwtVc;
                 })
-                .flatMap(credential -> Mono.fromCallable(() -> mapToVerifiableCredential(credential))
-                        .onErrorResume(e -> {
-                            log.warn("[{}] Error mapping credential {} for user {}",
-                                    processId, credential.getCredentialId(), userId, e);
-                            return Mono.empty();
-                        })
-                )
+                .flatMap(credential -> {
+                    try {
+                        return Mono.just(mapToVerifiableCredential(credential));
+                    } catch (Exception e) {
+                        log.warn("[{}] Error mapping credential {} for user {}",
+                                processId, credential.getCredentialId(), userId, e);
+                        return Mono.empty();
+                    }
+                })
                 .collectList()
                 .flatMap(credentialsInfo -> {
                     if (credentialsInfo.isEmpty()) {

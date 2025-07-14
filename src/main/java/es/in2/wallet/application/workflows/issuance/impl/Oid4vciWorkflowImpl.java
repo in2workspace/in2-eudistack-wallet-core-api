@@ -81,14 +81,18 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                     && !config.cryptographicBindingMethodsSupported().isEmpty()) {
                                 jwtMono = buildAndSignCredentialRequest(oid4vciCredentialService.getNonceValue(), did, credentialIssuerMetadata.credentialIssuer());
                             } else {
-                                jwtMono = Mono.justOrEmpty((String) null);
+                                jwtMono = Mono.just("");
                             }
                             log.debug("JWT: {}", jwtMono);
-                            return retrieveCredentialFormatFromCredentialIssuerMetadataByCredentialConfigurationId(credentialConfigurationId, credentialIssuerMetadata)
-                                    .flatMap(format -> jwtMono
-                                        .flatMap(jwt -> oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, format, credentialConfigurationId))
-                                        .flatMap(credentialResponseWithStatus -> handleCredentialResponse(processId, credentialResponseWithStatus, authorizationToken, tokenResponse, credentialIssuerMetadata, format))
-                                );
+                            return jwtMono.flatMap(jwt ->
+                                    retrieveCredentialFormatFromCredentialIssuerMetadataByCredentialConfigurationId(credentialConfigurationId, credentialIssuerMetadata)
+                                            .flatMap(format ->
+                                                    oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, format, credentialConfigurationId)
+                                                            .flatMap(credentialResponseWithStatus ->
+                                                                    handleCredentialResponse(processId, credentialResponseWithStatus, authorizationToken, tokenResponse, credentialIssuerMetadata, format)
+                                                            )
+                                            )
+                            );
 
                         })
                 );
