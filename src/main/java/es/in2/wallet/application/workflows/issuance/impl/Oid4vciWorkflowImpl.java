@@ -130,6 +130,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
     private Mono<String> retrieveCredentialFormatFromCredentialIssuerMetadataByCredentialConfigurationId(
             String credentialConfigurationId, CredentialIssuerMetadata credentialIssuerMetadata) {
+        System.out.println("XIVATO 1");
         return Mono.justOrEmpty(credentialIssuerMetadata.credentialsConfigurationsSupported())
                 .map(configurationsSupported -> configurationsSupported.get(credentialConfigurationId))
                 .map(CredentialIssuerMetadata.CredentialsConfigurationsSupported::format)

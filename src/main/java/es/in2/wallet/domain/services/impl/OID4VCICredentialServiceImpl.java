@@ -36,6 +36,7 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
             String format,
             String credentialConfigurationId
     ) {
+        System.out.println("XIVATO 2");
         String processId = MDC.get(PROCESS_ID);
 
         return buildCredentialRequest(jwt, format, credentialConfigurationId)
