@@ -33,6 +33,7 @@ public class RevokedCredentialSyncServiceImpl implements RevokedCredentialSyncSe
 
     private Mono<String> getRevokeStatusCredentialsListMetadata() {
         String statusListCredentialIssuerURL = appConfig.getIdentityProviderUrl() + "/credentials/status/1";
+        log.debug(statusListCredentialIssuerURL);
         return webClient.centralizedWebClient()
                 .get()
                 .uri(statusListCredentialIssuerURL)
