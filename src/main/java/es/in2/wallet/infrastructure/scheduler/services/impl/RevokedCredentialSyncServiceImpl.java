@@ -1,6 +1,5 @@
 package es.in2.wallet.infrastructure.scheduler.services.impl;
 
-import es.in2.wallet.application.ports.AppConfig;
 import es.in2.wallet.infrastructure.core.config.WebClientConfig;
 import es.in2.wallet.infrastructure.scheduler.services.RevokedCredentialSyncService;
 import lombok.RequiredArgsConstructor;
@@ -17,17 +16,15 @@ import static es.in2.wallet.domain.utils.ApplicationConstants.CONTENT_TYPE_APPLI
 public class RevokedCredentialSyncServiceImpl implements RevokedCredentialSyncService {
 
     private final WebClientConfig webClient;
-    private final AppConfig appConfig;
 
     @Override
     public Mono<Void> execute(String processId) {
-        getRevokeStatusCredentialsListMetadata()
+        return getRevokeStatusCredentialsListMetadata()
             .doOnSuccess(response -> log.info("ProcessID: {} - Revoke status credentials list metadata response: {}", processId, response))
             .onErrorResume(e -> {
                 log.error("ProcessID: {} - Error while fetching Revoke Status Credentials List Metadata from the Issuer: {}", processId, e.getMessage());
                 return Mono.error(new RuntimeException("Error while fetching Revoke Status Credentials List Metadata from the Issuer"));
-            });
-        return Mono.empty();
+            }).then();
 
     }
 
@@ -39,13 +36,20 @@ public class RevokedCredentialSyncServiceImpl implements RevokedCredentialSyncSe
                 .uri(statusListCredentialIssuerURL)
                 .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
                 .exchangeToMono(response -> {
-                    if (response.statusCode().is4xxClientError() || response.statusCode().is5xxServerError()) {
-                        return Mono.error(new RuntimeException("Error while fetching Revoke Status Credentials List Metadata from the Issuer, error" + response));
-                    }
-                    else {
-                        log.info("Revoke status credentials list metadata: {}", response);
-                        return response.bodyToMono(String.class);
+                    if (response.statusCode().isError()) {
+                        return response.bodyToMono(String.class)
+                                .defaultIfEmpty("No body")
+                                .flatMap(errorBody -> {
+                                    log.error("Error response body: {}", errorBody);
+                                    return Mono.error(new RuntimeException("Error from issuer: " + errorBody));
+                                });
+                    } else {
+                        return response.bodyToMono(String.class)
+                                .doOnNext(body ->
+                                        log.debug("Received status list body: {}", body)
+                                );
                     }
                 });
     }
+
 }
