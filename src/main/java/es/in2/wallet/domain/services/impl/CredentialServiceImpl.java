@@ -208,6 +208,7 @@ public class CredentialServiceImpl implements CredentialService {
                 .context(context)
                 .id(credential.getCredentialId())
                 .type(credential.getCredentialType())
+                .lifeCycleStatus(credential.getCredentialStatus())
                 .name(name)
                 .description(description)
                 .issuer(issuer)

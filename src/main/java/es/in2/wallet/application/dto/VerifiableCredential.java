@@ -16,6 +16,8 @@ public record VerifiableCredential(
         String id,
         @JsonProperty("type")
         List<String> type,
+        @JsonProperty("lifeCycleStatus")
+        String lifeCycleStatus,
         @JsonProperty("name")
         String name,
         @JsonProperty("description")
