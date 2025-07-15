@@ -19,6 +19,7 @@ public class RevokedCredentialSyncServiceImpl implements RevokedCredentialSyncSe
 
     @Override
     public Mono<Void> execute(String processId) {
+        log.debug("ProcessID: {} - Revoked credential sync service started", processId);
         return getRevokeStatusCredentialsListMetadata()
             .doOnSuccess(response -> log.info("ProcessID: {} - Revoke status credentials list metadata response: {}", processId, response))
             .onErrorResume(e -> {
@@ -31,11 +32,13 @@ public class RevokedCredentialSyncServiceImpl implements RevokedCredentialSyncSe
     private Mono<String> getRevokeStatusCredentialsListMetadata() {
         //TODO: Hardcoded for now
         String statusListCredentialIssuerURL = "https://issuer-dev.in2.ssihub.org/backoffice/v1/credentials/status/1";
+        log.debug("Getting Revoke Status Credentials List Metadata from: {}", statusListCredentialIssuerURL);
         return webClient.centralizedWebClient()
                 .get()
                 .uri(statusListCredentialIssuerURL)
                 .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
                 .exchangeToMono(response -> {
+                    log.debug("Status list response: {}", response.statusCode());
                     if (response.statusCode().isError()) {
                         return response.bodyToMono(String.class)
                                 .defaultIfEmpty("No body")
