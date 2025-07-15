@@ -21,6 +21,8 @@ public class RevokedCredentialsSyncScheduler {
     public void syncRevokedCredentials() {
         log.debug("Syncing revoked credentials");
         String processId = UUID.randomUUID().toString();
-        revokedCredentialSyncService.execute(processId);
+        revokedCredentialSyncService.execute(processId)
+                .doOnError(e -> log.error("Error during scheduled sync: {}", e.getMessage(), e))
+                .subscribe();
     }
 }
