@@ -30,7 +30,7 @@ public class RevokedCredentialSyncServiceImpl implements RevokedCredentialSyncSe
 
     private Mono<String> getRevokeStatusCredentialsListMetadata() {
         //TODO: Hardcoded for now
-        String statusListCredentialIssuerURL = "https://issuer-dev.in2.ssihub.org/credentials/status/1";
+        String statusListCredentialIssuerURL = "https://issuer-dev.in2.ssihub.org/backoffice/v1/credentials/status/1";
         return webClient.centralizedWebClient()
                 .get()
                 .uri(statusListCredentialIssuerURL)
