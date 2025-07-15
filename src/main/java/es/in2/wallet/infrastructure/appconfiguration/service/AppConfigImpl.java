@@ -9,6 +9,7 @@ import es.in2.wallet.infrastructure.ebsi.config.properties.EbsiProperties;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -19,6 +20,7 @@ import static es.in2.wallet.domain.utils.ApplicationConstants.AUTH_SERVER_JWT_DE
 
 @Configuration
 @Slf4j
+@EnableScheduling
 public class AppConfigImpl implements AppConfig {
 
     private final GenericConfigAdapter genericConfigAdapter;
