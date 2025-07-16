@@ -227,7 +227,10 @@ public class CredentialServiceImpl implements CredentialService {
                 .map(JsonNode::asText)
                 .orElse("");
 
-        CredentialStatus credentialStatus = mapToCredentialStatus(jsonVc.get("credentialStatus"));
+        CredentialStatus credentialStatus = Optional.ofNullable(jsonVc.get("credentialStatus"))
+                .filter(node -> !node.isNull())
+                .map(this::mapToCredentialStatus)
+                .orElse(null);
 
         return VerifiableCredential.builder()
                 .context(context)
