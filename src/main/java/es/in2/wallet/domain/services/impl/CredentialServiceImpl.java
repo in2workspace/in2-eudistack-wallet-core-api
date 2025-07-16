@@ -7,10 +7,11 @@ import com.nimbusds.jwt.SignedJWT;
 import com.upokecenter.cbor.CBORObject;
 import es.in2.wallet.application.dto.CredentialEntityBuildParams;
 import es.in2.wallet.application.dto.CredentialResponse;
+import es.in2.wallet.application.dto.CredentialStatus;
 import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.enums.CredentialFormats;
-import es.in2.wallet.domain.enums.CredentialStatus;
+import es.in2.wallet.domain.enums.LifeCycleStatus;
 import es.in2.wallet.domain.exceptions.NoSuchVerifiableCredentialException;
 import es.in2.wallet.domain.exceptions.ParseErrorException;
 import es.in2.wallet.domain.repositories.CredentialRepository;
@@ -67,7 +68,7 @@ public class CredentialServiceImpl implements CredentialService {
                                                             .credentialFormat(credentialFormat)
                                                             .credentialData(null)
                                                             .vcJson(vcJson)
-                                                            .credentialStatus(CredentialStatus.ISSUED)  // Deferred => ISSUED
+                                                            .lifeCycleStatus(LifeCycleStatus.ISSUED)  // Deferred => ISSUED
                                                             .currentTime(currentTime)
                                                             .build()
                                             )
@@ -99,7 +100,7 @@ public class CredentialServiceImpl implements CredentialService {
                                                         .credentialFormat(credentialFormat)
                                                         .credentialData(credentialResponse.credentials().get(0).credential()) // raw credential data
                                                         .vcJson(vcJson)
-                                                        .credentialStatus(CredentialStatus.VALID) // store as VALID code
+                                                        .lifeCycleStatus(LifeCycleStatus.VALID) // store as VALID code
                                                         .currentTime(currentTime)
                                                         .build()
                                         )
@@ -147,6 +148,30 @@ public class CredentialServiceImpl implements CredentialService {
                                 processId, credentialId, error.getMessage(), error)
                 );
     }
+
+    // ---------------------------------------------------------------------
+    // Fetch All Credentials
+    // ---------------------------------------------------------------------
+    @Override
+    public Mono<List<Credential>> getAllCredentials() {
+        return credentialRepository.findAll()
+                .collectList()
+                .flatMap(list -> {
+                    if (list.isEmpty()) {
+                        return Mono.error(new NoSuchVerifiableCredentialException(
+                                "No credentials found"));
+                    }
+                    return Mono.just(list);
+                });
+    }
+
+    @Override
+    public CredentialStatus getCredentialStatus(Credential credential){
+        JsonNode jsonVc = parseJsonVc(credential.getJsonVc());
+        return mapToCredentialStatus(jsonVc.get("credentialStatus"));
+    }
+
+
 
     // ---------------------------------------------------------------------
     // Fetch All Credentials by User
@@ -202,7 +227,7 @@ public class CredentialServiceImpl implements CredentialService {
                 .map(JsonNode::asText)
                 .orElse("");
 
-        JsonNode status = Optional.ofNullable(jsonVc.get("credentialStatus")).orElse(objectMapper.createObjectNode());
+        CredentialStatus credentialStatus = mapToCredentialStatus(jsonVc.get("credentialStatus"));
 
         return VerifiableCredential.builder()
                 .context(context)
@@ -215,7 +240,17 @@ public class CredentialServiceImpl implements CredentialService {
                 .validUntil(validUntil)
                 .validFrom(validFrom)
                 .credentialSubject(credentialSubject)
-                .credentialStatus(status)
+                .credentialStatus(credentialStatus)
+                .build();
+    }
+
+    private CredentialStatus mapToCredentialStatus(JsonNode credentialStatusNode) {
+        return CredentialStatus.builder()
+                .id(credentialStatusNode.get("id").asText())
+                .type(credentialStatusNode.get("type").asText())
+                .statusPurpose(credentialStatusNode.get("statusPurpose").asText())
+                .statusListIndex(credentialStatusNode.get("statusListIndex").asText())
+                .statusListCredential(credentialStatusNode.get("statusListCredential").asText())
                 .build();
     }
 
@@ -337,6 +372,16 @@ public class CredentialServiceImpl implements CredentialService {
     }
 
     // ---------------------------------------------------------------------
+    // Update Credential Life Cycle to REVOKE
+    // ---------------------------------------------------------------------
+    @Override
+    public Mono<Credential> updateCredentialEntityLifeCycleToRevoke(Credential existingCredential) {
+        existingCredential.setCredentialStatus(LifeCycleStatus.REVOKED.toString());
+        existingCredential.setUpdatedAt(Instant.now());
+        return credentialRepository.save(existingCredential);
+    }
+
+    // ---------------------------------------------------------------------
     // Private Helper to fetch credential from DB and check ownership
     // (optionally can also check status)
     // ---------------------------------------------------------------------
@@ -359,7 +404,7 @@ public class CredentialServiceImpl implements CredentialService {
     private Mono<Credential> fetchCredentialOrErrorInIssuedStatus(String credentialId, UUID userId) {
         return fetchCredentialOrError(credentialId, userId)
                 .flatMap(credential -> {
-                    if (!Objects.equals(credential.getCredentialStatus(), CredentialStatus.ISSUED.toString())) {
+                    if (!Objects.equals(credential.getCredentialStatus(), LifeCycleStatus.ISSUED.toString())) {
                         return Mono.error(new IllegalStateException(
                                 "Credential is not in ISSUED status (found " + credential.getCredentialStatus() + ")"
                         ));
@@ -391,7 +436,7 @@ public class CredentialServiceImpl implements CredentialService {
                 .credentialId(params.credentialId())
                 .userId(params.userId())
                 .credentialType(params.credentialTypes())
-                .credentialStatus(params.credentialStatus().toString())
+                .credentialStatus(params.lifeCycleStatus().toString())
                 .credentialFormat(params.credentialFormat().toString())
                 .credentialData(params.credentialData())
                 .jsonVc(params.vcJson().toString())
@@ -522,12 +567,11 @@ public class CredentialServiceImpl implements CredentialService {
         }
     }
 
-
     // ---------------------------------------------------------------------
     // Update Credential (Deferred: ISSUED -> VALID, data, etc.)
     // ---------------------------------------------------------------------
     private Mono<Credential> updateCredentialEntity(Credential existingCredential, CredentialResponse credentialResponse) {
-        existingCredential.setCredentialStatus(CredentialStatus.VALID.toString());
+        existingCredential.setCredentialStatus(LifeCycleStatus.VALID.toString());
         existingCredential.setCredentialData(credentialResponse.credentials().get(0).credential());
         existingCredential.setUpdatedAt(Instant.now());
         return credentialRepository.save(existingCredential);

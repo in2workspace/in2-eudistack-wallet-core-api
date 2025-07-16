@@ -6,11 +6,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.wallet.application.dto.CredentialResponse;
-import es.in2.wallet.application.dto.CredentialsBasicInfo;
 import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.enums.CredentialFormats;
-import es.in2.wallet.domain.enums.CredentialStatus;
+import es.in2.wallet.domain.enums.LifeCycleStatus;
 import es.in2.wallet.domain.exceptions.NoSuchVerifiableCredentialException;
 import es.in2.wallet.domain.repositories.CredentialRepository;
 import es.in2.wallet.domain.services.impl.CredentialServiceImpl;
@@ -85,7 +84,7 @@ class CredentialServiceImplTest {
         // Check the captured entity's fields
         Credential passedToSave = captor.getValue();
         assertEquals(userId, passedToSave.getUserId());
-        assertEquals(CredentialStatus.ISSUED.toString(), passedToSave.getCredentialStatus());
+        assertEquals(LifeCycleStatus.ISSUED.toString(), passedToSave.getCredentialStatus());
         assertNull(passedToSave.getCredentialData());
         // plus any other checks you wish to make
     }
@@ -157,7 +156,7 @@ class CredentialServiceImplTest {
             verify(credentialRepository).save(any(Credential.class));
 
             Credential passedToSave = captor.getValue();
-            assertEquals(CredentialStatus.VALID.toString(), passedToSave.getCredentialStatus());
+            assertEquals(LifeCycleStatus.VALID.toString(), passedToSave.getCredentialStatus());
             assertEquals(userId, passedToSave.getUserId());
             assertEquals(CredentialFormats.JWT_VC.toString(), passedToSave.getCredentialFormat());
             assertEquals(credential, passedToSave.getCredentialData());
@@ -202,7 +201,7 @@ class CredentialServiceImplTest {
                 .id(uuid)
                 .credentialId(cred)
                 .userId(userId)
-                .credentialStatus(CredentialStatus.ISSUED.toString())
+                .credentialStatus(LifeCycleStatus.ISSUED.toString())
                 .build();
 
         when(credentialRepository.findByCredentialId(cred)).thenReturn(Mono.just(existing));
@@ -212,7 +211,7 @@ class CredentialServiceImplTest {
                 .id(uuid)
                 .credentialId(cred)
                 .userId(userId)
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .build();
 
         ArgumentCaptor<Credential> captor = ArgumentCaptor.forClass(Credential.class);
@@ -237,7 +236,7 @@ class CredentialServiceImplTest {
 
         // Check that the repository saved with status = VALID
         Credential passedToSave = captor.getValue();
-        assertEquals(CredentialStatus.VALID.toString(), passedToSave.getCredentialStatus());
+        assertEquals(LifeCycleStatus.VALID.toString(), passedToSave.getCredentialStatus());
         assertEquals("some-jwt-data", passedToSave.getCredentialData());
     }
 
@@ -320,7 +319,7 @@ class CredentialServiceImplTest {
                 .credentialId(credentialId1)
                 .userId(userUuid)
                 .credentialType(List.of("VerifiableCredential", "LEARCredentialEmployee"))
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .jsonVc(credential1)
                 .build();
         Credential c2 = Credential.builder()
@@ -328,7 +327,7 @@ class CredentialServiceImplTest {
                 .credentialId(credentialId2)
                 .userId(userUuid)
                 .credentialType(List.of("VerifiableCredential", "AnotherType"))
-                .credentialStatus(CredentialStatus.ISSUED.toString())
+                .credentialStatus(LifeCycleStatus.ISSUED.toString())
                 .jsonVc(credential2)
                 .build();
 
@@ -374,7 +373,7 @@ class CredentialServiceImplTest {
                 .credentialId(credentialId1)
                 .userId(userUuid)
                 .credentialType(List.of("VerifiableCredential"))
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .jsonVc(badCredentialJson)
                 .build();
         when(objectMapper.readTree(badCredentialJson)).thenThrow(new JsonProcessingException("bad json") {});
@@ -479,7 +478,10 @@ class CredentialServiceImplTest {
               },
               "credentialStatus": {
                 "id": "https://example.com/status/1234",
-                "type": "StatusList2021Entry"
+                "type": "StatusList2021Entry",
+                "statusPurpose": "revocation",
+                "statusListIndex": "ZpKxfjwWSZifwCihxFoUxQ",
+                "statusListCredential": "https://example.com/status/1234"
               }
             }
             """;
@@ -489,7 +491,7 @@ class CredentialServiceImplTest {
                 .userId(userUuid)
                 .credentialFormat(format)
                 .credentialType(List.of("VerifiableCredential", requiredType))
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .jsonVc(jsonVc)
                 .build();
 
@@ -519,7 +521,7 @@ class CredentialServiceImplTest {
                 .userId(userUuid)
                 .credentialFormat("ldp_vc")
                 .credentialType(List.of("VerifiableCredential", "SomeOtherType"))
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .jsonVc("{}")
                 .build();
 

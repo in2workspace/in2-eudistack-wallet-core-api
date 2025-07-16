@@ -26,7 +26,7 @@ public record VerifiableCredential(
         @JsonProperty("validFrom") String validFrom,
         @JsonProperty("validUntil") String validUntil, // New Credential version attribute
         @JsonProperty("credentialSubject") JsonNode credentialSubject,
-        @JsonProperty("credentialStatus") JsonNode credentialStatus
+        @JsonProperty("credentialStatus") CredentialStatus credentialStatus
 
 ) {
 }

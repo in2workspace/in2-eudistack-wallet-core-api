@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
-import es.in2.wallet.domain.enums.CredentialStatus;
+import es.in2.wallet.domain.enums.LifeCycleStatus;
 import lombok.Builder;
 
 import java.time.ZonedDateTime;
@@ -18,7 +18,7 @@ import static es.in2.wallet.domain.utils.ApplicationConstants.*;
 public record CredentialsBasicInfo(
         @JsonProperty("id") String id,
         @JsonProperty("type") List<String> vcType,
-        @JsonProperty("status") CredentialStatus credentialStatus,
+        @JsonProperty("status") LifeCycleStatus lifeCycleStatus,
         @JsonProperty(AVAILABLE_FORMATS) List<String> availableFormats,
         @JsonProperty(CREDENTIAL_SUBJECT) JsonNode credentialSubject,
         @JsonProperty(VALID_UNTIL)

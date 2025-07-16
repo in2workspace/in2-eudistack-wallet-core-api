@@ -3,11 +3,10 @@ package es.in2.wallet.api.facade;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import es.in2.wallet.application.dto.CredentialsBasicInfo;
+import es.in2.wallet.application.dto.CredentialStatus;
 import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.application.ports.VaultService;
 import es.in2.wallet.application.workflows.data.impl.DataWorkflowImpl;
-import es.in2.wallet.domain.enums.CredentialStatus;
 import es.in2.wallet.domain.services.CredentialService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,7 +69,14 @@ class DataWorkflowImplTest {
                 "    \"statusListCredential\": \"https://issuer.dome-marketplace.eu/credentials/status/1\"\n" +
                 "  }";
         ObjectMapper objectMapper4 = new ObjectMapper();
-        JsonNode credentialStatus = objectMapper4.readTree(jsonStatus);
+        JsonNode credentialStatusNode = objectMapper4.readTree(jsonStatus);
+        CredentialStatus credentialStatus = CredentialStatus.builder()
+                .id(credentialStatusNode.get("id").asText())
+                .type(credentialStatusNode.get("type").asText())
+                .statusPurpose(credentialStatusNode.get("statusPurpose").asText())
+                .statusListIndex(credentialStatusNode.get("statusListIndex").asText())
+                .statusListCredential(credentialStatusNode.get("statusListCredential").asText())
+                .build();
 
         List<VerifiableCredential> expectedCredentials = List.of(new VerifiableCredential(List.of("context"),"id1", List.of("type"), "VALID", "name", "desc", issuer, ZonedDateTime.now().toString(), ZonedDateTime.now().toString(), credentialSubject, credentialStatus));
 
