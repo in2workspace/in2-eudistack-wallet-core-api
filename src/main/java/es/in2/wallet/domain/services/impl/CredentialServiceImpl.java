@@ -168,6 +168,7 @@ public class CredentialServiceImpl implements CredentialService {
     @Override
     public CredentialStatus getCredentialStatus(Credential credential){
         JsonNode jsonVc = parseJsonVc(credential.getJsonVc());
+        System.out.println(("XIVATO 0: " + jsonVc));
         return Optional.ofNullable(jsonVc.get("credentialStatus"))
                 .filter(node -> !node.isNull())
                 .map(this::mapToCredentialStatus)

@@ -37,7 +37,6 @@ public class CheckAndUpdateRevokedCredentialsWorkflowImpl implements CheckAndUpd
         return credentialService.getAllCredentials()
                 .flatMapMany(Flux::fromIterable)
                 .flatMap(credential -> {
-                    System.out.println(("XIVATO 0: " + credential));
                     CredentialStatus credentialStatus = credentialService.getCredentialStatus(credential);
                     System.out.println(("XIVATO 1: " + credentialStatus));
                     if (credentialStatus == null || credentialStatus.statusListCredential() == null) {
