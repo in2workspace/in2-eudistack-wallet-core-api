@@ -564,7 +564,10 @@ class CredentialServiceImplTest {
               },
               "credentialStatus": {
                 "id": "https://example.com/status/1234",
-                "type": "StatusList2021Entry"
+                "type": "StatusList2021Entry",
+                "statusPurpose": "revocation",
+                "statusListIndex": "ZpKxfjwWSZifwCihxFoUxQ",
+                "statusListCredential": "https://example.com/status/1234"
               }
             }
             """;
