@@ -16,8 +16,8 @@ public class RevokedCredentialsSyncScheduler {
 
     private final RevokedCredentialSyncService revokedCredentialSyncService;
 
-    //@Scheduled(cron = "0 0 0 * * *", zone = "Europe/Madrid")
-    @Scheduled(cron = "0 */2 * * * *", zone = "Europe/Madrid")
+    @Scheduled(cron = "0 0 0 * * *", zone = "Europe/Madrid")
+    //@Scheduled(cron = "0 */2 * * * *", zone = "Europe/Madrid")
     public void syncRevokedCredentials() {
         log.debug("Syncing revoked credentials");
         String processId = UUID.randomUUID().toString();
