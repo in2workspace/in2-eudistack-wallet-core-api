@@ -168,7 +168,10 @@ public class CredentialServiceImpl implements CredentialService {
     @Override
     public CredentialStatus getCredentialStatus(Credential credential){
         JsonNode jsonVc = parseJsonVc(credential.getJsonVc());
-        return mapToCredentialStatus(jsonVc.get("credentialStatus"));
+        return Optional.ofNullable(jsonVc.get("credentialStatus"))
+                .filter(node -> !node.isNull())
+                .map(this::mapToCredentialStatus)
+                .orElse(null);
     }
 
 
