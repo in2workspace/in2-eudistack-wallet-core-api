@@ -38,7 +38,6 @@ public class CheckAndUpdateRevokedCredentialsWorkflowImpl implements CheckAndUpd
                 .flatMapMany(Flux::fromIterable)
                 .flatMap(credential -> {
                     CredentialStatus credentialStatus = credentialService.getCredentialStatus(credential);
-                    System.out.println(("XIVATO 1: " + credentialStatus));
                     if (credentialStatus == null || credentialStatus.statusListCredential() == null) {
                         log.debug("ProcessID: {} - Credential {} does not contain credentialStatus info", processId, credential.getId());
                         return Mono.empty();
@@ -86,17 +85,20 @@ public class CheckAndUpdateRevokedCredentialsWorkflowImpl implements CheckAndUpd
                                 });
                     } else {
                         return response.bodyToMono(String.class)
-                                .map(jsonBody -> {
+                                .flatMap(jsonBody -> {
                                     try {
+                                        System.out.println("Response: " + jsonBody);
                                         CredentialStatusResponse[] responseArray = objectMapper.readValue(jsonBody, CredentialStatusResponse[].class);
-                                        return Arrays.stream(responseArray)
+                                        List<String> nonces = Arrays.stream(responseArray)
                                                 .map(CredentialStatusResponse::credentialNonce)
                                                 .toList();
+                                        return Mono.just(nonces);
                                     } catch (Exception e) {
-                                        log.error("Error parsing JSON response from {}: {}", statusListCredentialUrl, e.getMessage());
-                                        throw new ParseErrorException("JSON parse error");
+                                        log.error("Error parsing JSON response from {}: {}", statusListCredentialUrl, e.getMessage(), e);
+                                        return Mono.error(new ParseErrorException("JSON parse error"));
                                     }
                                 });
+
                     }
                 });
     }
