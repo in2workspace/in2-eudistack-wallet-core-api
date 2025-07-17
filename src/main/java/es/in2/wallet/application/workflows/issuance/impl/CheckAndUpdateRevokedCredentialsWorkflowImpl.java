@@ -42,8 +42,6 @@ public class CheckAndUpdateRevokedCredentialsWorkflowImpl implements CheckAndUpd
                         log.debug("ProcessID: {} - Credential {} does not contain credentialStatus info", processId, credential.getId());
                         return Mono.empty();
                     }
-                    System.out.println(("XIVATO 2: Si contiene"));
-
                     String statusListCredentialUrl = credentialStatus.statusListCredential();
                     String statusListIndex = credentialStatus.statusListIndex();
 
@@ -87,7 +85,6 @@ public class CheckAndUpdateRevokedCredentialsWorkflowImpl implements CheckAndUpd
                         return response.bodyToMono(String.class)
                                 .flatMap(jsonBody -> {
                                     try {
-                                        System.out.println("Response: " + jsonBody);
                                         CredentialStatusResponse[] responseArray = objectMapper.readValue(jsonBody, CredentialStatusResponse[].class);
                                         List<String> nonces = Arrays.stream(responseArray)
                                                 .map(CredentialStatusResponse::credentialNonce)
