@@ -6,6 +6,7 @@ import es.in2.wallet.application.dto.CredentialStatus;
 import es.in2.wallet.application.workflows.issuance.impl.CheckAndUpdateStatusCredentialsWorkflowImpl;
 import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.enums.LifeCycleStatus;
+import es.in2.wallet.domain.exceptions.ParseErrorException;
 import es.in2.wallet.domain.services.*;
 import es.in2.wallet.infrastructure.core.config.WebClientConfig;
 import okhttp3.mockwebserver.MockResponse;
@@ -169,6 +170,39 @@ class CheckAndUpdateStatusCredentialsWorkflowImplTest {
                 .verifyComplete();
 
         verify(credentialService, never()).updateCredentialEntityLifeCycleStatus(any(), any());
+    }
+
+    @Test
+    void shouldHandleJsonParsingErrorFromIssuerResponse() throws IOException {
+        Credential credential = buildCredential("VALID", "{}");
+
+        ObjectNode vcJson = objectMapper.createObjectNode();
+        vcJson.put("validUntil", Instant.now().plusSeconds(3600).toString());
+
+        MockWebServer server = new MockWebServer();
+        server.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody("{malformed_json]"));
+        server.start();
+
+        String statusListCredentialUrl = server.url("/status").toString();
+
+        CredentialStatus status = CredentialStatus.builder()
+                .statusListCredential(statusListCredentialUrl)
+                .statusListIndex("abc123")
+                .build();
+
+        when(credentialService.getAllCredentials()).thenReturn(Mono.just(List.of(credential)));
+        when(credentialService.getCredentialJsonVc(credential)).thenReturn(vcJson);
+        when(credentialService.getCredentialStatus(credential)).thenReturn(status);
+        when(webClient.centralizedWebClient()).thenReturn(WebClient.create());
+
+        StepVerifier.create(checkAndUpdateStatusCredentialsWorkflow.execute("process-id"))
+                .expectError(ParseErrorException.class)
+                .verify();
+
+        server.shutdown();
     }
 
 

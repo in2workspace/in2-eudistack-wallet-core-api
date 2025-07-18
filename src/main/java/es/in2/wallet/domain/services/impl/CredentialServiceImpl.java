@@ -167,7 +167,7 @@ public class CredentialServiceImpl implements CredentialService {
 
     @Override
     public CredentialStatus getCredentialStatus(Credential credential){
-        JsonNode jsonVc = parseJsonVc(credential.getJsonVc());
+        JsonNode jsonVc = getCredentialJsonVc(credential);
         return Optional.ofNullable(jsonVc.get("credentialStatus"))
                 .filter(node -> !node.isNull())
                 .map(this::mapToCredentialStatus)
@@ -207,7 +207,7 @@ public class CredentialServiceImpl implements CredentialService {
     // Helper to map from Credential entity to DTO
     // ---------------------------------------------------------------------
     private VerifiableCredential mapToVerifiableCredential(Credential credential) {
-        JsonNode jsonVc = parseJsonVc(credential.getJsonVc());
+        JsonNode jsonVc = getCredentialJsonVc(credential);
 
         JsonNode contextNode = jsonVc.get("@context");
         List<String> context = StreamSupport.stream(contextNode.spliterator(), false)
@@ -344,7 +344,7 @@ public class CredentialServiceImpl implements CredentialService {
                 })
                 .flatMap(credential -> {
                     // Parse the VC JSON
-                    JsonNode vcNode = parseJsonVc(credential.getJsonVc());
+                    JsonNode vcNode = getCredentialJsonVc(credential);
 
                     // Decide if LEARCredentialEmployee
                     boolean isLear = credential.getCredentialType().stream()

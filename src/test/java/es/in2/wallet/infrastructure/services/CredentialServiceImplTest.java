@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.wallet.application.dto.CredentialResponse;
+import es.in2.wallet.application.dto.CredentialStatus;
 import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.enums.CredentialFormats;
@@ -542,6 +543,86 @@ class CredentialServiceImplTest {
                 .verify();
     }
 
+    @Test
+    void testGetAllCredentials_shouldReturnList_whenCredentialsExist() {
+        Credential c1 = Credential.builder().credentialId("cred-1").build();
+        Credential c2 = Credential.builder().credentialId("cred-2").build();
+
+        when(credentialRepository.findAll()).thenReturn(Flux.just(c1, c2));
+
+        StepVerifier.create(credentialRepositoryService.getAllCredentials())
+                .expectNextMatches(list -> list.size() == 2 && list.get(0).getCredentialId().equals("cred-1"))
+                .verifyComplete();
+    }
+
+    @Test
+    void testGetAllCredentials_shouldThrowException_whenNoCredentialsExist() {
+        when(credentialRepository.findAll()).thenReturn(Flux.empty());
+
+        StepVerifier.create(credentialRepositoryService.getAllCredentials())
+                .expectErrorMatches(err ->
+                        err instanceof NoSuchVerifiableCredentialException &&
+                                err.getMessage().equals("No credentials found"))
+                .verify();
+    }
+
+    @Test
+    void testGetCredentialStatus_shouldReturnStatus_whenFieldExists() throws Exception {
+        String json = """
+        {
+            "credentialStatus": {
+                "id": "https://example.com/status/1234",
+                "type": "StatusList2021Entry",
+                "statusPurpose": "revocation",
+                "statusListIndex": "ZpKxfjwWSZifwCihxFoUxQ",
+                "statusListCredential": "https://example.com/status/1234"
+             }
+        }
+        """;
+        Credential credential = Credential.builder().jsonVc(json).build();
+
+        when(objectMapper.readTree(json)).thenReturn(new ObjectMapper().readTree(json));
+
+        CredentialStatus status = credentialRepositoryService.getCredentialStatus(credential);
+        assertEquals("https://example.com/status/1234", status.statusListCredential());
+        assertEquals("ZpKxfjwWSZifwCihxFoUxQ", status.statusListIndex());
+    }
+
+    @Test
+    void testGetCredentialStatus_shouldReturnNull_whenNoCredentialStatusField() throws Exception {
+        String json = """
+        {
+            "otherField": 123
+        }
+        """;
+        Credential credential = Credential.builder().jsonVc(json).build();
+
+        when(objectMapper.readTree(json)).thenReturn(new ObjectMapper().readTree(json));
+
+        CredentialStatus status = credentialRepositoryService.getCredentialStatus(credential);
+        assertNull(status);
+    }
+
+    @Test
+    void testGetCredentialJsonVc_shouldReturnParsedJson() throws Exception {
+        String json = """
+        {
+            "id": "credential-123",
+            "type": ["VerifiableCredential"]
+        }
+        """;
+        Credential credential = Credential.builder().jsonVc(json).build();
+
+        JsonNode expected = new ObjectMapper().readTree(json);
+        when(objectMapper.readTree(json)).thenReturn(expected);
+
+        JsonNode result = credentialRepositoryService.getCredentialJsonVc(credential);
+        assertEquals("credential-123", result.get("id").asText());
+    }
+
+
+
+
     private JsonNode getJsonNodeCredentialLearCredentialEmployee() throws JsonProcessingException {
         String json = """
             {
@@ -561,35 +642,6 @@ class CredentialServiceImplTest {
                     "id": "did:example:987"
                   }
                 }
-              }
-            }
-            """;
-        ObjectMapper objectMapper2 = new ObjectMapper();
-        return objectMapper2.readTree(json);
-    }
-
-    private JsonNode getJsonNodeCredentialLearCredentialEmployee2() throws JsonProcessingException {
-        String json = """
-            {
-              "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
-              "type": ["VerifiableCredential", "LEARCredentialEmployee"],
-              "issuer": {
-                "id": "did:example:issuer"
-              },
-              "validUntil": "2026-12-31T23:59:59Z",
-              "validFrom": "2023-01-01T00:00:00Z",
-              "credentialSubject": {
-                "name": "Credential Name",
-                "description": "Credential Description",
-                "mandate": {
-                  "mandatee": {
-                    "id": "did:example:987"
-                  }
-                }
-              },
-              "credentialStatus": {
-                "id": "https://example.com/status/1234",
-                "type": "StatusList2021Entry"
               }
             }
             """;
