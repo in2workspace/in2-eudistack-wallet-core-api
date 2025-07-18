@@ -1,7 +1,7 @@
 package es.in2.wallet.infrastructure.scheduler;
 
 
-import es.in2.wallet.infrastructure.scheduler.services.StatusCredentialSyncService;
+import es.in2.wallet.application.workflows.issuance.CheckAndUpdateStatusCredentialsWorkflow;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,15 +14,16 @@ import java.util.UUID;
 @Slf4j
 public class StatusCredentialsSyncScheduler {
 
-    private final StatusCredentialSyncService revokedCredentialSyncService;
+    private final CheckAndUpdateStatusCredentialsWorkflow checkAndUpdateStatusCredentialsWorkflow;
 
     //@Scheduled(cron = "0 0 0 * * *", zone = "Europe/Madrid")
     @Scheduled(cron = "0 */2 * * * *", zone = "Europe/Madrid")
     public void syncStatusCredentials() {
-        log.debug("Syncing status credentials");
         String processId = UUID.randomUUID().toString();
-        revokedCredentialSyncService.execute(processId)
-                .doOnError(e -> log.error("Error during scheduled sync: {}", e.getMessage(), e))
+        log.debug("ProcessID: {} - Starting scheduled sync of credential statuses", processId);
+
+        checkAndUpdateStatusCredentialsWorkflow.execute(processId)
+                .doOnError(e -> log.error("ProcessID: {} - Error during scheduled sync: {}", processId, e.getMessage(), e))
                 .subscribe();
     }
 }
