@@ -195,7 +195,7 @@ public class CredentialServiceImpl implements CredentialService {
                 .collectList()
                 .flatMap(list -> list.isEmpty()
                         ? Mono.error(new NoSuchVerifiableCredentialException(
-                        "No valid credentials found for user " + userId))
+                        "The credentials list is empty. Cannot proceed." + userId))
                         : Mono.just(list));
     }
 
