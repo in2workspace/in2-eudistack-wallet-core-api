@@ -174,6 +174,10 @@ public class CredentialServiceImpl implements CredentialService {
                 .orElse(null);
     }
 
+    @Override
+    public JsonNode getCredentialJsonVc(Credential credential){
+        return parseJsonVc(credential.getJsonVc());
+    }
 
 
     // ---------------------------------------------------------------------
@@ -381,8 +385,8 @@ public class CredentialServiceImpl implements CredentialService {
     // Update Credential Life Cycle to REVOKE
     // ---------------------------------------------------------------------
     @Override
-    public Mono<Credential> updateCredentialEntityLifeCycleToRevoke(Credential existingCredential) {
-        existingCredential.setCredentialStatus(LifeCycleStatus.REVOKED.toString());
+    public Mono<Credential> updateCredentialEntityLifeCycleStatus(Credential existingCredential, LifeCycleStatus lifeCycleStatus) {
+        existingCredential.setCredentialStatus(lifeCycleStatus.toString());
         existingCredential.setUpdatedAt(Instant.now());
         return credentialRepository.save(existingCredential);
     }

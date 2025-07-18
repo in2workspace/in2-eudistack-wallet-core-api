@@ -1,9 +1,11 @@
 package es.in2.wallet.application.workflows.issuance.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import es.in2.wallet.application.dto.CredentialStatus;
 import es.in2.wallet.application.dto.CredentialStatusResponse;
-import es.in2.wallet.application.workflows.issuance.CheckAndUpdateRevokedCredentialsWorkflow;
+import es.in2.wallet.application.workflows.issuance.CheckAndUpdateStatusCredentialsWorkflow;
+import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.enums.LifeCycleStatus;
 import es.in2.wallet.domain.exceptions.ParseErrorException;
 import es.in2.wallet.domain.services.CredentialService;
@@ -14,9 +16,11 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static es.in2.wallet.domain.utils.ApplicationConstants.BEARER;
@@ -25,7 +29,7 @@ import static es.in2.wallet.domain.utils.ApplicationConstants.HEADER_AUTHORIZATI
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CheckAndUpdateRevokedCredentialsWorkflowImpl implements CheckAndUpdateRevokedCredentialsWorkflow {
+public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpdateStatusCredentialsWorkflow {
     private final CredentialService credentialService;
     private final ObjectMapper objectMapper;
     private final WebClientConfig webClient;
@@ -37,33 +41,56 @@ public class CheckAndUpdateRevokedCredentialsWorkflowImpl implements CheckAndUpd
         return credentialService.getAllCredentials()
                 .flatMapMany(Flux::fromIterable)
                 .flatMap(credential -> {
+                    if (isCredentialExpired(credential)) {
+                        return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.EXPIRED);
+                    }
+
                     CredentialStatus credentialStatus = credentialService.getCredentialStatus(credential);
                     if (credentialStatus == null || credentialStatus.statusListCredential() == null) {
-                        log.debug("ProcessID: {} - Credential {} does not contain credentialStatus info", processId, credential.getId());
-                        return Mono.empty();
+                        log.debug("ProcessID: {} - Credential {} missing credentialStatus", processId, credential.getId());
+                        return Flux.empty();
                     }
-                    String statusListCredentialUrl = credentialStatus.statusListCredential();
-                    String statusListIndex = credentialStatus.statusListIndex();
 
-                    Mono<List<String>> noncesMono = nonceCache.computeIfAbsent(
-                            statusListCredentialUrl,
-                            url -> getRevokedNoncesFromIssuer(url).cache()
-                    );
+                    String url = credentialStatus.statusListCredential();
+                    String index = credentialStatus.statusListIndex();
 
-                    return noncesMono.flatMapMany(nonces -> {
-                        boolean isRevoked = nonces.contains(statusListIndex);
+                    Mono<List<String>> revokedNoncesMono = nonceCache.computeIfAbsent(url, k -> getRevokedNoncesFromIssuer(k).cache());
 
-                        if (isRevoked && !LifeCycleStatus.REVOKED.toString().equalsIgnoreCase(credential.getCredentialStatus())) {
-                            log.info("ProcessID: {} - Credential {} marked as revoked", processId, credential.getId());
-                            return credentialService.updateCredentialEntityLifeCycleToRevoke(credential).flux();
-                        } else {
-                            log.debug("ProcessID: {} - Credential {} not updated (revoked: {}, current status: {})",
-                                    processId, credential.getId(), isRevoked, credential.getCredentialStatus());
-                            return Flux.empty();
+                    return revokedNoncesMono.flatMapMany(nonces -> {
+                        boolean isRevoked = nonces.contains(index);
+                        if (isRevoked) {
+                            return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.REVOKED);
                         }
+                        log.debug("ProcessID: {} - Credential {} not revoked", processId, credential.getId());
+                        return Flux.empty();
                     });
                 })
                 .then();
+    }
+
+    private boolean isCredentialExpired(Credential credential) {
+        JsonNode vcJson = credentialService.getCredentialJsonVc(credential);
+        if (vcJson == null || vcJson.get("validUntil") == null) {
+            return false;
+        }
+        try {
+            Instant validUntil = Instant.parse(vcJson.get("validUntil").asText());
+            return Instant.now().isAfter(validUntil);
+        } catch (Exception e) {
+            log.warn("Invalid 'validUntil' format for credential {}: {}", credential.getId(), e.getMessage());
+            return false;
+        }
+    }
+
+    private Flux<Credential> updateCredentialStatusIfNecessary(String processId,Credential credential,LifeCycleStatus newStatus) {
+        String currentStatus = credential.getCredentialStatus();
+        if (!newStatus.toString().equalsIgnoreCase(currentStatus)) {
+            log.info("ProcessID: {} - Credential {} marked as {}", processId, credential.getId(), newStatus);
+            return credentialService.updateCredentialEntityLifeCycleStatus(credential, newStatus).flux();
+        } else {
+            log.debug("ProcessID: {} - Credential {} already in status {}", processId, credential.getId(), currentStatus);
+            return Flux.empty();
+        }
     }
 
 
