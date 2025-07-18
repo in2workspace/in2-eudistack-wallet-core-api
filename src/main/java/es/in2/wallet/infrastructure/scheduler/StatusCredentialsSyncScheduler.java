@@ -17,7 +17,7 @@ public class StatusCredentialsSyncScheduler {
     private final StatusCredentialSyncService revokedCredentialSyncService;
 
     //@Scheduled(cron = "0 0 0 * * *", zone = "Europe/Madrid")
-    @Scheduled(cron = "0 0 */5 * * *", zone = "Europe/Madrid")
+    @Scheduled(cron = "0 */2 * * * *", zone = "Europe/Madrid")
     public void syncStatusCredentials() {
         log.debug("Syncing status credentials");
         String processId = UUID.randomUUID().toString();
