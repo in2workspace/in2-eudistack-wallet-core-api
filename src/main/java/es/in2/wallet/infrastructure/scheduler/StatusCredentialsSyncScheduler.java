@@ -16,8 +16,7 @@ public class StatusCredentialsSyncScheduler {
 
     private final CheckAndUpdateStatusCredentialsWorkflow checkAndUpdateStatusCredentialsWorkflow;
 
-    //@Scheduled(cron = "0 0 0 * * *", zone = "Europe/Madrid")
-    @Scheduled(cron = "0 */2 * * * *", zone = "Europe/Madrid")
+    @Scheduled(cron = "0 0 0 * * *", zone = "Europe/Madrid")
     public void syncStatusCredentials() {
         String processId = UUID.randomUUID().toString();
         log.debug("ProcessID: {} - Starting scheduled sync of credential statuses", processId);
