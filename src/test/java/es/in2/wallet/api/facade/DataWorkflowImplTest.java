@@ -78,8 +78,7 @@ class DataWorkflowImplTest {
                 .statusListCredential(credentialStatusNode.get("statusListCredential").asText())
                 .build();
 
-        List<VerifiableCredential> expectedCredentials = List.of(new VerifiableCredential(List.of("context"),"id1", List.of("type"), "name", "desc", issuer, ZonedDateTime.now().toString(), ZonedDateTime.now().toString(), credentialSubject, credentialStatus, "ofdasjfsdojgofdjgodfjgoodjgojgo"));
-        List<VerifiableCredential> expectedCredentials = List.of(new VerifiableCredential(List.of("context"),"id1", List.of("type"), "VALID", "name", "desc", issuer, ZonedDateTime.now().toString(), ZonedDateTime.now().toString(), credentialSubject, credentialStatus));
+        List<VerifiableCredential> expectedCredentials = List.of(new VerifiableCredential(List.of("context"),"id1", List.of("type"), "VALID", "name", "desc", issuer, ZonedDateTime.now().toString(), ZonedDateTime.now().toString(), credentialSubject, credentialStatus, "ofdasjfsdojgofdjgodfjgoodjgojgo"));
 
         when(credentialService.getCredentialsByUserId(processId, userId)).thenReturn(Mono.just(expectedCredentials));
 
