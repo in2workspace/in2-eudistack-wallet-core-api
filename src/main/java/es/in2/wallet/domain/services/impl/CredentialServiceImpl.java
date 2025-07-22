@@ -156,7 +156,9 @@ public class CredentialServiceImpl implements CredentialService {
         return parseStringToUuid(userId, USER_ID)
                 .flatMapMany(credentialRepository::findAllByUserId)
                 .flatMap(credential -> {
-                    System.out.println("XIVATO1: "+credential);
+                    System.out.println("XIVATO1: "+credential.getCredentialData());
+                    System.out.println("XIVATO2: "+credential.getCredentialFormat());
+                    System.out.println("XIVATO3: "+credential.getJsonVc());
                     try {
                         return Mono.just(mapToVerifiableCredential(credential));
                     } catch (Exception e) {
