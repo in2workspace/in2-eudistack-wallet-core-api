@@ -251,6 +251,7 @@ public class CredentialServiceImpl implements CredentialService {
                 .validFrom(validFrom)
                 .credentialSubject(credentialSubject)
                 .credentialStatus(credentialStatus)
+                .credentialEncoded(credential.getCredentialData())
                 .build();
     }
 
