@@ -205,6 +205,7 @@ public class AuthorizationResponseServiceImpl implements AuthorizationResponseSe
                 .header(HttpHeaders.AUTHORIZATION, BEARER + authorizationToken)
                 .bodyValue(xWwwFormUrlencodedBody)
                 .exchangeToMono(response -> {
+                    System.out.println("XIVATO!: " + response.statusCode());
                     if (response.statusCode().is4xxClientError()) {
                         if (response.statusCode().value() == 401) {
                             log.warn("ProcessID: {} - Unauthorized, status: 401: Error: {}", processId, response);
