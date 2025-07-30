@@ -6,11 +6,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.wallet.application.dto.CredentialResponse;
-import es.in2.wallet.application.dto.CredentialsBasicInfo;
+import es.in2.wallet.application.dto.CredentialStatus;
 import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.enums.CredentialFormats;
-import es.in2.wallet.domain.enums.CredentialStatus;
+import es.in2.wallet.domain.enums.LifeCycleStatus;
 import es.in2.wallet.domain.exceptions.NoSuchVerifiableCredentialException;
 import es.in2.wallet.domain.repositories.CredentialRepository;
 import es.in2.wallet.domain.services.impl.CredentialServiceImpl;
@@ -85,7 +85,7 @@ class CredentialServiceImplTest {
         // Check the captured entity's fields
         Credential passedToSave = captor.getValue();
         assertEquals(userId, passedToSave.getUserId());
-        assertEquals(CredentialStatus.ISSUED.toString(), passedToSave.getCredentialStatus());
+        assertEquals(LifeCycleStatus.ISSUED.toString(), passedToSave.getCredentialStatus());
         assertNull(passedToSave.getCredentialData());
         // plus any other checks you wish to make
     }
@@ -157,7 +157,7 @@ class CredentialServiceImplTest {
             verify(credentialRepository).save(any(Credential.class));
 
             Credential passedToSave = captor.getValue();
-            assertEquals(CredentialStatus.VALID.toString(), passedToSave.getCredentialStatus());
+            assertEquals(LifeCycleStatus.VALID.toString(), passedToSave.getCredentialStatus());
             assertEquals(userId, passedToSave.getUserId());
             assertEquals(CredentialFormats.JWT_VC.toString(), passedToSave.getCredentialFormat());
             assertEquals(credential, passedToSave.getCredentialData());
@@ -202,7 +202,7 @@ class CredentialServiceImplTest {
                 .id(uuid)
                 .credentialId(cred)
                 .userId(userId)
-                .credentialStatus(CredentialStatus.ISSUED.toString())
+                .credentialStatus(LifeCycleStatus.ISSUED.toString())
                 .build();
 
         when(credentialRepository.findByCredentialId(cred)).thenReturn(Mono.just(existing));
@@ -212,7 +212,7 @@ class CredentialServiceImplTest {
                 .id(uuid)
                 .credentialId(cred)
                 .userId(userId)
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .build();
 
         ArgumentCaptor<Credential> captor = ArgumentCaptor.forClass(Credential.class);
@@ -237,7 +237,7 @@ class CredentialServiceImplTest {
 
         // Check that the repository saved with status = VALID
         Credential passedToSave = captor.getValue();
-        assertEquals(CredentialStatus.VALID.toString(), passedToSave.getCredentialStatus());
+        assertEquals(LifeCycleStatus.VALID.toString(), passedToSave.getCredentialStatus());
         assertEquals("some-jwt-data", passedToSave.getCredentialData());
     }
 
@@ -320,7 +320,7 @@ class CredentialServiceImplTest {
                 .credentialId(credentialId1)
                 .userId(userUuid)
                 .credentialType(List.of("VerifiableCredential", "LEARCredentialEmployee"))
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .jsonVc(credential1)
                 .build();
         Credential c2 = Credential.builder()
@@ -328,7 +328,7 @@ class CredentialServiceImplTest {
                 .credentialId(credentialId2)
                 .userId(userUuid)
                 .credentialType(List.of("VerifiableCredential", "AnotherType"))
-                .credentialStatus(CredentialStatus.ISSUED.toString())
+                .credentialStatus(LifeCycleStatus.ISSUED.toString())
                 .jsonVc(credential2)
                 .build();
 
@@ -374,7 +374,7 @@ class CredentialServiceImplTest {
                 .credentialId(credentialId1)
                 .userId(userUuid)
                 .credentialType(List.of("VerifiableCredential"))
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .jsonVc(badCredentialJson)
                 .build();
         when(objectMapper.readTree(badCredentialJson)).thenThrow(new JsonProcessingException("bad json") {});
@@ -479,7 +479,10 @@ class CredentialServiceImplTest {
               },
               "credentialStatus": {
                 "id": "https://example.com/status/1234",
-                "type": "StatusList2021Entry"
+                "type": "StatusList2021Entry",
+                "statusPurpose": "revocation",
+                "statusListIndex": "ZpKxfjwWSZifwCihxFoUxQ",
+                "statusListCredential": "https://example.com/status/1234"
               }
             }
             """;
@@ -489,7 +492,7 @@ class CredentialServiceImplTest {
                 .userId(userUuid)
                 .credentialFormat(format)
                 .credentialType(List.of("VerifiableCredential", requiredType))
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .jsonVc(jsonVc)
                 .build();
 
@@ -519,7 +522,7 @@ class CredentialServiceImplTest {
                 .userId(userUuid)
                 .credentialFormat("ldp_vc")
                 .credentialType(List.of("VerifiableCredential", "SomeOtherType"))
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .jsonVc("{}")
                 .build();
 
@@ -540,6 +543,86 @@ class CredentialServiceImplTest {
                 .verify();
     }
 
+    @Test
+    void testGetAllCredentials_shouldReturnList_whenCredentialsExist() {
+        Credential c1 = Credential.builder().credentialId("cred-1").build();
+        Credential c2 = Credential.builder().credentialId("cred-2").build();
+
+        when(credentialRepository.findAll()).thenReturn(Flux.just(c1, c2));
+
+        StepVerifier.create(credentialRepositoryService.getAllCredentials())
+                .expectNextMatches(list -> list.size() == 2 && list.get(0).getCredentialId().equals("cred-1"))
+                .verifyComplete();
+    }
+
+    @Test
+    void testGetAllCredentials_shouldThrowException_whenNoCredentialsExist() {
+        when(credentialRepository.findAll()).thenReturn(Flux.empty());
+
+        StepVerifier.create(credentialRepositoryService.getAllCredentials())
+                .expectErrorMatches(err ->
+                        err instanceof NoSuchVerifiableCredentialException &&
+                                err.getMessage().equals("No credentials found"))
+                .verify();
+    }
+
+    @Test
+    void testGetCredentialStatus_shouldReturnStatus_whenFieldExists() throws Exception {
+        String json = """
+        {
+            "credentialStatus": {
+                "id": "https://example.com/status/1234",
+                "type": "StatusList2021Entry",
+                "statusPurpose": "revocation",
+                "statusListIndex": "ZpKxfjwWSZifwCihxFoUxQ",
+                "statusListCredential": "https://example.com/status/1234"
+             }
+        }
+        """;
+        Credential credential = Credential.builder().jsonVc(json).build();
+
+        when(objectMapper.readTree(json)).thenReturn(new ObjectMapper().readTree(json));
+
+        CredentialStatus status = credentialRepositoryService.getCredentialStatus(credential);
+        assertEquals("https://example.com/status/1234", status.statusListCredential());
+        assertEquals("ZpKxfjwWSZifwCihxFoUxQ", status.statusListIndex());
+    }
+
+    @Test
+    void testGetCredentialStatus_shouldReturnNull_whenNoCredentialStatusField() throws Exception {
+        String json = """
+        {
+            "otherField": 123
+        }
+        """;
+        Credential credential = Credential.builder().jsonVc(json).build();
+
+        when(objectMapper.readTree(json)).thenReturn(new ObjectMapper().readTree(json));
+
+        CredentialStatus status = credentialRepositoryService.getCredentialStatus(credential);
+        assertNull(status);
+    }
+
+    @Test
+    void testGetCredentialJsonVc_shouldReturnParsedJson() throws Exception {
+        String json = """
+        {
+            "id": "credential-123",
+            "type": ["VerifiableCredential"]
+        }
+        """;
+        Credential credential = Credential.builder().jsonVc(json).build();
+
+        JsonNode expected = new ObjectMapper().readTree(json);
+        when(objectMapper.readTree(json)).thenReturn(expected);
+
+        JsonNode result = credentialRepositoryService.getCredentialJsonVc(credential);
+        assertEquals("credential-123", result.get("id").asText());
+    }
+
+
+
+
     private JsonNode getJsonNodeCredentialLearCredentialEmployee() throws JsonProcessingException {
         String json = """
             {
@@ -559,39 +642,6 @@ class CredentialServiceImplTest {
                     "id": "did:example:987"
                   }
                 }
-              },
-              "credentialStatus": {
-                "id": "https://example.com/status/1234",
-                "type": "StatusList2021Entry"
-              }
-            }
-            """;
-        ObjectMapper objectMapper2 = new ObjectMapper();
-        return objectMapper2.readTree(json);
-    }
-
-    private JsonNode getJsonNodeCredentialLearCredentialEmployee2() throws JsonProcessingException {
-        String json = """
-            {
-              "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
-              "type": ["VerifiableCredential", "LEARCredentialEmployee"],
-              "issuer": {
-                "id": "did:example:issuer"
-              },
-              "validUntil": "2026-12-31T23:59:59Z",
-              "validFrom": "2023-01-01T00:00:00Z",
-              "credentialSubject": {
-                "name": "Credential Name",
-                "description": "Credential Description",
-                "mandate": {
-                  "mandatee": {
-                    "id": "did:example:987"
-                  }
-                }
-              },
-              "credentialStatus": {
-                "id": "https://example.com/status/1234",
-                "type": "StatusList2021Entry"
               }
             }
             """;

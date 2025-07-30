@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.0.5](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.5)
 ### Changed
 - Added credential in GET response
+- 
+## [v2.0.4](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.4)
+### Changed
+- Added lifeCycleStatus
 
 ## [v2.0.3](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.3)
 ### Fixed

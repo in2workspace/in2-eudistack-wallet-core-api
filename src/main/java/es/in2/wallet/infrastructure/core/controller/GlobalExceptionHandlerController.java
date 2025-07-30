@@ -160,6 +160,18 @@ public class GlobalExceptionHandlerController {
                 .build());
     }
 
+    @ExceptionHandler(RevokedCredentialErrorException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    @ResponseBody
+    public Mono<GlobalErrorMessage> revokedCredentialErrorException(RevokedCredentialErrorException revokedCredentialErrorException, ServerHttpRequest request) {
+        String path = String.valueOf(request.getPath());
+        return Mono.just(GlobalErrorMessage.builder()
+                .title("Attestation Forbidden Response")
+                .message(revokedCredentialErrorException.getMessage())
+                .path(path)
+                .build());
+    }
+
     @ExceptionHandler(AttestationClientErrorException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ResponseBody

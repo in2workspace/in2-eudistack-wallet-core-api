@@ -47,6 +47,7 @@ class GlobalExceptionHandlerControllerTest {
                 CredentialNotAvailableException.class,
                 IssuerNotAuthorizedException.class,
                 AttestationUnauthorizedException.class,
+                RevokedCredentialErrorException.class,
                 AttestationClientErrorException.class,
                 AttestationServerErrorException.class,
                 TimeoutException.class
@@ -66,6 +67,7 @@ class GlobalExceptionHandlerControllerTest {
                 "CredentialNotAvailable",
                 "IssuerNotAuthorizedException",
                 "Attestation Unauthorized Response",
+                "Attestation Forbidden Response",
                 "Attestation Client Error",
                 "Attestation Server Error",
                 "Timeout Error"
@@ -84,6 +86,7 @@ class GlobalExceptionHandlerControllerTest {
                 (ex, req) -> globalExceptionHandlerController.credentialNotAvailableException((CredentialNotAvailableException) ex, req),
                 (ex, req) -> globalExceptionHandlerController.issuerNotAuthorizedException((IssuerNotAuthorizedException) ex, req),
                 (ex, req) -> globalExceptionHandlerController.attestationUnauthorizedException((AttestationUnauthorizedException) ex, req),
+                (ex, req) -> globalExceptionHandlerController.revokedCredentialErrorException((RevokedCredentialErrorException) ex, req),
                 (ex, req) -> globalExceptionHandlerController.attestationClientErrorException((AttestationClientErrorException) ex, req),
                 (ex, req) -> globalExceptionHandlerController.attestationServerErrorException((AttestationServerErrorException) ex, req),
                 (ex, req) -> globalExceptionHandlerController.timeoutErrorException((TimeoutException) ex, req)
@@ -103,6 +106,7 @@ class GlobalExceptionHandlerControllerTest {
         exceptionMethodNames.put(CredentialNotAvailableException.class, "CredentialNotAvailableException");
         exceptionMethodNames.put(IssuerNotAuthorizedException.class, "IssuerNotAuthorizedException");
         exceptionMethodNames.put(AttestationUnauthorizedException.class, "Attestation Unauthorized Response");
+        exceptionMethodNames.put(RevokedCredentialErrorException.class, "Attestation Forbidden Response");
         exceptionMethodNames.put(AttestationClientErrorException.class, "Attestation Client Error");
         exceptionMethodNames.put(AttestationServerErrorException.class, "Attestation Server Error");
         exceptionMethodNames.put(TimeoutException.class, "Timeout Error");
