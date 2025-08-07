@@ -347,9 +347,10 @@ public class CredentialServiceImpl implements CredentialService {
                     // Parse the VC JSON
                     JsonNode vcNode = getCredentialJsonVc(credential);
 
-                    // Decide if LEARCredentialEmployee
+                    // Decide if LEARCredentialEmployee or LEARCredentialMachine
                     boolean isLear = credential.getCredentialType().stream()
-                            .anyMatch("LEARCredentialEmployee"::equals);
+                            .anyMatch("LEARCredentialEmployee"::equals) || credential.getCredentialType().stream()
+                            .anyMatch("LEARCredentialMachine"::equals);
 
                     // Extract DID from the correct path
                     JsonNode didNode = isLear
