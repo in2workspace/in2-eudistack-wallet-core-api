@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -46,18 +48,26 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
                     }
 
                     CredentialStatus credentialStatus = credentialService.getCredentialStatus(credential);
-                    if (credentialStatus == null || credentialStatus.statusListCredential() == null) {
+                    if (credentialStatus == null || credentialStatus.statusListCredential() == null || credentialStatus.statusListIndex() == null) {
                         log.debug("ProcessID: {} - Credential {} missing credentialStatus", processId, credential.getId());
                         return Flux.empty();
                     }
 
-                    String url = credentialStatus.statusListCredential();
-                    String index = credentialStatus.statusListIndex();
+                    String rawUrl = credentialStatus.statusListCredential().trim();
+                    String index = credentialStatus.statusListIndex().trim();
 
-                    Mono<List<String>> revokedNoncesMono = nonceCache.computeIfAbsent(url, k ->
+                    String cleanedUrl;
+                    try {
+                        cleanedUrl = URI.create(rawUrl).toString();
+                    } catch (IllegalArgumentException e) {
+                        log.error("ProcessID: {} - Invalid statusListCredential URL '{}' for credential {}: {}", processId, rawUrl, credential.getId(), e.getMessage());
+                        return Flux.empty();
+                    }
+
+                    Mono<List<String>> revokedNoncesMono = nonceCache.computeIfAbsent(cleanedUrl, k ->
                             getRevokedNoncesFromIssuer(k)
                                     .onErrorResume(e -> {
-                                        log.error("ProcessID: {} - Error getting revoked nonces from {}: {}", processId, url, e.toString());
+                                        log.error("ProcessID: {} - Error fetching nonces from {}: {}", processId, k, e.toString());
                                         return Mono.just(List.of());
                                     })
                                     .cache()
