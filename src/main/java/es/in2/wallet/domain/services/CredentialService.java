@@ -15,9 +15,9 @@ public interface CredentialService {
     Mono<String> saveCredential(String processId, UUID userId, CredentialResponse credentialResponse, String format);
     Mono<Void> saveDeferredCredential(String processId, String userId, String credentialId, CredentialResponse credentialResponse);
     Mono<List<Credential>> getAllCredentials();
+    Mono<List<Credential>> getAllCredentialsByUser(String userId);
     CredentialStatus getCredentialStatus(Credential credential);
     JsonNode getCredentialJsonVc(Credential credential);
-
     Mono<List<VerifiableCredential>> getCredentialsByUserId(String processId, String userId);
     Mono<String> extractDidFromCredential(String processId, String credentialId, String userId);
     Mono<Void> deleteCredential(String processId, String credentialId, String userId);

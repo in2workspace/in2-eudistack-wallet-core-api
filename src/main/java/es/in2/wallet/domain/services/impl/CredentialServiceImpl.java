@@ -165,6 +165,23 @@ public class CredentialServiceImpl implements CredentialService {
                 });
     }
 
+    // ---------------------------------------------------------------------
+    // Fetch All Credentials By User
+    // ---------------------------------------------------------------------
+    @Override
+    public Mono<List<Credential>> getAllCredentialsByUser(String userId) {
+        return parseStringToUuid(userId, USER_ID)
+                .flatMapMany(credentialRepository::findAllByUserId)
+                .collectList()
+                .flatMap(list -> {
+                    if (list.isEmpty()) {
+                        return Mono.error(new NoSuchVerifiableCredentialException(
+                                "No credentials found"));
+                    }
+                    return Mono.just(list);
+                });
+    }
+
     @Override
     public CredentialStatus getCredentialStatus(Credential credential){
         JsonNode jsonVc = getCredentialJsonVc(credential);

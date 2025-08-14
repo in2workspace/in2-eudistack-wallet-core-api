@@ -13,6 +13,7 @@ import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -20,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class WalletInitFilter implements WebFilter {
 
-    //private final CheckAndUpdateStatusCredentialsWorkflow workflow;
+    private final CheckAndUpdateStatusCredentialsWorkflow checkAndUpdateStatusCredentialsWorkflow;
 
     private final Set<String> executedTokens = ConcurrentHashMap.newKeySet();
 
@@ -42,12 +43,13 @@ public class WalletInitFilter implements WebFilter {
 
                     if (executedTokens.add(tokenHash)) {
                         log.info("First access for token {} - executing workflow for user {}", tokenHash, userId);
-                        /*return workflow.execute(userId)
+                        String processId = UUID.randomUUID().toString();
+                        return checkAndUpdateStatusCredentialsWorkflow.executeForUser(processId, userId)
                                 .onErrorResume(e -> {
                                     log.warn("Failed to execute workflow for user {}: {}", userId, e.getMessage());
                                     return Mono.empty();
                                 })
-                                .then(chain.filter(exchange));*/
+                                .then(chain.filter(exchange));
                     }
 
                     return chain.filter(exchange);
