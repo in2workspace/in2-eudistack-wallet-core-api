@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WalletInitFilter implements WebFilter {
 
     private final CheckAndUpdateStatusCredentialsWorkflow workflow;
-    private final Set<String> executedUsers = ConcurrentHashMap.newKeySet(); // No en constructor
+    private final Set<String> executedTokens = ConcurrentHashMap.newKeySet();
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
@@ -32,15 +32,23 @@ public class WalletInitFilter implements WebFilter {
                                 .filter(Authentication::isAuthenticated)
                                 .flatMap(auth -> {
                                     String userId = auth.getName();
-                                    if (executedUsers.add(userId)) {
-                                        String processId = UUID.randomUUID().toString();
-                                        log.info("First login for user {}, executing workflow {}", userId, processId);
-                                        return workflow.executeForUser(processId, userId)
-                                                .doOnError(e -> log.warn("Error in workflow for {}: {}", userId, e.getMessage()))
-                                                .then();
+                                    String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
+
+                                    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                                        String token = authHeader.substring(7).trim();
+                                        String tokenHash = Integer.toHexString(token.hashCode());
+
+                                        if (executedTokens.add(tokenHash)) {
+                                            String processId = UUID.randomUUID().toString();
+                                            log.info("First access for token {}, executing workflow for user {}", tokenHash, userId);
+                                            return workflow.executeForUser(processId, userId)
+                                                    .doOnError(e -> log.warn("Error in workflow for {}: {}", userId, e.getMessage()))
+                                                    .then();
+                                        }
                                     }
                                     return Mono.empty();
                                 })
                 );
     }
 }
+
