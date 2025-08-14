@@ -28,10 +28,10 @@ public class WalletInitFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        return ReactiveSecurityContextHolder.getContext()
+        ReactiveSecurityContextHolder.getContext()
                 .map(SecurityContext::getAuthentication)
                 .filter(Authentication::isAuthenticated)
-                .doOnNext(auth -> {
+                .subscribe(auth -> {
                     String userId = auth.getName();
                     String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
@@ -40,7 +40,7 @@ public class WalletInitFilter implements WebFilter {
                         String tokenHash = Integer.toHexString(token.hashCode());
 
                         if (executedTokens.add(tokenHash)) {
-                            log.info("First access for token {} - executing workflow for user {}", tokenHash, userId);
+                            log.info("🔐 First authenticated request for token {} - executing workflow for user {}", tokenHash, userId);
                             String processId = UUID.randomUUID().toString();
 
                             checkAndUpdateStatusCredentialsWorkflow.executeForUser(processId, userId)
@@ -48,7 +48,8 @@ public class WalletInitFilter implements WebFilter {
                                     .subscribe();
                         }
                     }
-                })
-                .then(chain.filter(exchange));
+                });
+
+        return chain.filter(exchange);
     }
 }
