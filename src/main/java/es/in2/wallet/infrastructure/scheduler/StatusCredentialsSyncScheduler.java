@@ -16,8 +16,8 @@ public class StatusCredentialsSyncScheduler {
 
     private final CheckAndUpdateStatusCredentialsWorkflow checkAndUpdateStatusCredentialsWorkflow;
 
-    @Scheduled(cron = "0 0 1 * * ?") //Every day at 1:00 AM
-    //@Scheduled(cron = "0 0/2 * * * ?") //Every 30 minutes
+    //@Scheduled(cron = "0 0 1 * * ?") //Every day at 1:00 AM
+    @Scheduled(cron = "0 0/2 * * * ?") //Every 30 minutes
     public void syncStatusCredentials() {
         String processId = UUID.randomUUID().toString();
         log.debug("ProcessID: {} - Starting scheduled sync of credential statuses", processId);
