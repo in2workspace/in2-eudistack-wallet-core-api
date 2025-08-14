@@ -1,4 +1,4 @@
-package es.in2.wallet.infrastructure.core.config;
+/*package es.in2.wallet.infrastructure.core.config;
 
 import es.in2.wallet.application.workflows.issuance.CheckAndUpdateStatusCredentialsWorkflow;
 import lombok.RequiredArgsConstructor;
@@ -56,4 +56,4 @@ public class WalletInitFilter implements WebFilter {
                 })
                 .switchIfEmpty(chain.filter(exchange));
     }
-}
+}*/
