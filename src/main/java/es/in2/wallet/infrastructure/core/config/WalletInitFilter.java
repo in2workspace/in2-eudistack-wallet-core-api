@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WalletInitFilter implements WebFilter {
 
     private final CheckAndUpdateStatusCredentialsWorkflow checkAndUpdateStatusCredentialsWorkflow;
-
     private final Set<String> executedTokens = ConcurrentHashMap.newKeySet();
 
     @Override
@@ -32,34 +31,24 @@ public class WalletInitFilter implements WebFilter {
         return ReactiveSecurityContextHolder.getContext()
                 .map(SecurityContext::getAuthentication)
                 .filter(Authentication::isAuthenticated)
-                .flatMap(auth -> {
+                .doOnNext(auth -> {
                     String userId = auth.getName();
                     String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
-                    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                        return chain.filter(exchange);
+                    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                        String token = authHeader.substring(7).trim();
+                        String tokenHash = Integer.toHexString(token.hashCode());
+
+                        if (executedTokens.add(tokenHash)) {
+                            log.info("First access for token {} - executing workflow for user {}", tokenHash, userId);
+                            String processId = UUID.randomUUID().toString();
+
+                            checkAndUpdateStatusCredentialsWorkflow.executeForUser(processId, userId)
+                                    .doOnError(e -> log.warn("Workflow error for {}: {}", userId, e.getMessage()))
+                                    .subscribe();
+                        }
                     }
-
-                    String token = authHeader.substring(7).trim();
-                    String tokenHash = Integer.toHexString(token.hashCode());
-
-                    if (executedTokens.add(tokenHash)) {
-                        log.info("First access for token {} - executing workflow for user {}", tokenHash, userId);
-                        String processId = UUID.randomUUID().toString();
-
-                        return checkAndUpdateStatusCredentialsWorkflow.executeForUser(processId, userId)
-                                .onErrorResume(e -> {
-                                    log.warn("Workflow error for {}: {}", userId, e.getMessage());
-                                    return Mono.empty();
-                                })
-                                .then(chain.filter(exchange));
-                    }
-
-                    return chain.filter(exchange);
                 })
-                .switchIfEmpty(chain.filter(exchange));
+                .then(chain.filter(exchange));
     }
-
-
-
 }
