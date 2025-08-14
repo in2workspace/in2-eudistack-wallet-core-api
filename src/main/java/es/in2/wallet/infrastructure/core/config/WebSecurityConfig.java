@@ -1,10 +1,8 @@
 package es.in2.wallet.infrastructure.core.config;
 
 import es.in2.wallet.application.ports.AppConfig;
-import es.in2.wallet.application.workflows.issuance.CheckAndUpdateStatusCredentialsWorkflow;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -17,11 +15,6 @@ import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
-import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-import org.springframework.web.server.WebFilter;
-
-import java.util.concurrent.ConcurrentHashMap;
-
 import static es.in2.wallet.domain.utils.ApplicationConstants.*;
 
 @Slf4j
@@ -97,12 +90,6 @@ public class WebSecurityConfig {
                 );
 
         return http.build();
-    }
-
-    @Bean
-    @Order(3)
-    public WebFilter walletInitFilter(CheckAndUpdateStatusCredentialsWorkflow workflow) {
-        return new WalletInitFilter(workflow);
     }
 
 }
