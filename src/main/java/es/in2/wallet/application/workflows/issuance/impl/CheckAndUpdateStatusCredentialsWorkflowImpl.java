@@ -54,7 +54,14 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
                     String url = credentialStatus.statusListCredential();
                     String index = credentialStatus.statusListIndex();
 
-                    Mono<List<String>> revokedNoncesMono = nonceCache.computeIfAbsent(url, k -> getRevokedNoncesFromIssuer(k).cache());
+                    Mono<List<String>> revokedNoncesMono = nonceCache.computeIfAbsent(url, k ->
+                            getRevokedNoncesFromIssuer(k)
+                                    .onErrorResume(e -> {
+                                        log.error("ProcessID: {} - Error getting revoked nonces from {}: {}", processId, url, e.toString());
+                                        return Mono.just(List.of());
+                                    })
+                                    .cache()
+                    );
 
                     return revokedNoncesMono.flatMapMany(nonces -> {
                         boolean isRevoked = nonces.contains(index);
