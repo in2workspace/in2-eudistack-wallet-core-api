@@ -18,7 +18,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-@Order(3)
 @RequiredArgsConstructor
 @Slf4j
 public class WalletInitFilter implements WebFilter {
