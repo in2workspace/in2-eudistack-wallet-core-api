@@ -18,17 +18,13 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
+@Order(3)
 @RequiredArgsConstructor
 @Slf4j
-public class WalletInitFilter implements WebFilter, Ordered {
+public class WalletInitFilter implements WebFilter {
 
     private final CheckAndUpdateStatusCredentialsWorkflow workflow;
     private final Set<String> executedTokens = ConcurrentHashMap.newKeySet();
-
-    @Override
-    public int getOrder() {
-        return SecurityWebFiltersOrder.AUTHENTICATION.getOrder() + 1;
-    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
