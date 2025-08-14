@@ -3,6 +3,7 @@ package es.in2.wallet.infrastructure.core.config;
 import es.in2.wallet.application.workflows.issuance.CheckAndUpdateStatusCredentialsWorkflow;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
@@ -17,6 +18,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
+@Order(100)
 @RequiredArgsConstructor
 @Slf4j
 public class WalletInitFilter implements WebFilter {
@@ -27,28 +29,37 @@ public class WalletInitFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        return chain.filter(exchange)
-                .then(ReactiveSecurityContextHolder.getContext()
-                        .map(SecurityContext::getAuthentication)
-                        .filter(Authentication::isAuthenticated)
-                        .doOnNext(auth -> {
-                            String userId = auth.getName();
-                            String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
-                            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                                String token = authHeader.substring(7).trim();
-                                String tokenHash = Integer.toHexString(token.hashCode());
+        return ReactiveSecurityContextHolder.getContext()
+                .map(SecurityContext::getAuthentication)
+                .filter(Authentication::isAuthenticated)
+                .flatMap(auth -> {
+                    String userId = auth.getName();
+                    String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
-                                if (executedTokens.add(tokenHash)) {
-                                    log.info("First access for token {} - executing workflow for user {}", tokenHash, userId);
-                                    String processId = UUID.randomUUID().toString();
-                                    checkAndUpdateStatusCredentialsWorkflow.executeForUser(processId, userId)
-                                            .doOnError(e -> log.warn("Workflow error for {}: {}", userId, e.getMessage()))
-                                            .subscribe();
-                                }
-                            }
-                        }))
-                .then();
+                    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                        return chain.filter(exchange);
+                    }
+
+                    String token = authHeader.substring(7).trim();
+                    String tokenHash = Integer.toHexString(token.hashCode());
+
+                    if (executedTokens.add(tokenHash)) {
+                        log.info("First access for token {} - executing workflow for user {}", tokenHash, userId);
+                        String processId = UUID.randomUUID().toString();
+
+                        return checkAndUpdateStatusCredentialsWorkflow.executeForUser(processId, userId)
+                                .onErrorResume(e -> {
+                                    log.warn("Workflow error for {}: {}", userId, e.getMessage());
+                                    return Mono.empty();
+                                })
+                                .then(chain.filter(exchange));
+                    }
+
+                    return chain.filter(exchange);
+                })
+                .switchIfEmpty(chain.filter(exchange));
     }
+
 
 
 }
