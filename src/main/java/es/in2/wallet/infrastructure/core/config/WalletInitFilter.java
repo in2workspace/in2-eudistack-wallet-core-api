@@ -27,28 +27,28 @@ public class WalletInitFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        return ReactiveSecurityContextHolder.getContext()
-                .map(SecurityContext::getAuthentication)
-                .filter(Authentication::isAuthenticated)
-                .doOnNext(auth -> {
-                    String userId = auth.getName();
+        return chain.filter(exchange)
+                .then(ReactiveSecurityContextHolder.getContext()
+                        .map(SecurityContext::getAuthentication)
+                        .filter(Authentication::isAuthenticated)
+                        .doOnNext(auth -> {
+                            String userId = auth.getName();
+                            String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
+                            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                                String token = authHeader.substring(7).trim();
+                                String tokenHash = Integer.toHexString(token.hashCode());
 
-                    String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
-                    if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                        String token = authHeader.substring(7).trim();
-                        String tokenHash = Integer.toHexString(token.hashCode());
-
-                        if (executedTokens.add(tokenHash)) {
-                            log.info("First access for token {} - executing workflow for user {}", tokenHash, userId);
-                            String processId = UUID.randomUUID().toString();
-
-                            checkAndUpdateStatusCredentialsWorkflow.executeForUser(processId, userId)
-                                    .doOnError(e -> log.warn("Workflow execution failed for user {}: {}", userId, e.getMessage()))
-                                    .subscribe();
-                        }
-                    }
-                })
-                .then(chain.filter(exchange));
+                                if (executedTokens.add(tokenHash)) {
+                                    log.info("First access for token {} - executing workflow for user {}", tokenHash, userId);
+                                    String processId = UUID.randomUUID().toString();
+                                    checkAndUpdateStatusCredentialsWorkflow.executeForUser(processId, userId)
+                                            .doOnError(e -> log.warn("Workflow error for {}: {}", userId, e.getMessage()))
+                                            .subscribe();
+                                }
+                            }
+                        }))
+                .then();
     }
+
 
 }
