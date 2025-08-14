@@ -15,9 +15,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.security.core.context.SecurityContext;
+
 @Component
-@Slf4j
 @RequiredArgsConstructor
+@Slf4j
 public class WalletInitFilter implements WebFilter {
 
     private final CheckAndUpdateStatusCredentialsWorkflow workflow;
@@ -26,29 +28,30 @@ public class WalletInitFilter implements WebFilter {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         return chain.filter(exchange)
-                .then(
-                        ReactiveSecurityContextHolder.getContext()
-                                .map(ctx -> ctx.getAuthentication())
-                                .filter(Authentication::isAuthenticated)
-                                .flatMap(auth -> {
-                                    String userId = auth.getName();
-                                    String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
+                .then(ReactiveSecurityContextHolder.getContext()
+                        .map(SecurityContext::getAuthentication)
+                        .filter(Authentication::isAuthenticated)
+                        .flatMap(auth -> {
+                            String userId = auth.getName();
+                            String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
-                                    if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                                        String token = authHeader.substring(7).trim();
-                                        String tokenHash = Integer.toHexString(token.hashCode());
+                            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                                String token = authHeader.substring(7).trim();
+                                String tokenHash = Integer.toHexString(token.hashCode());
 
-                                        if (executedTokens.add(tokenHash)) {
-                                            String processId = UUID.randomUUID().toString();
-                                            log.info("First access for token {}, executing workflow for user {}", tokenHash, userId);
-                                            return workflow.executeForUser(processId, userId)
-                                                    .doOnError(e -> log.warn("Error in workflow for {}: {}", userId, e.getMessage()))
-                                                    .then();
-                                        }
-                                    }
-                                    return Mono.empty();
-                                })
-                );
+                                if (executedTokens.add(tokenHash)) {
+                                    String processId = UUID.randomUUID().toString();
+                                    log.info("First protected request for token {}, executing workflow for user {}", tokenHash, userId);
+                                    return workflow.executeForUser(processId, userId)
+                                            .doOnError(e -> log.warn("Workflow error for {}: {}", userId, e.getMessage()))
+                                            .then();
+                                }
+                            }
+
+                            return Mono.empty();
+                        }));
     }
+
 }
+
 
