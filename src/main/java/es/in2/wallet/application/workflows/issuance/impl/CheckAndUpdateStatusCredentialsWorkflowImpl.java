@@ -42,6 +42,10 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
 
         return credentialService.getAllCredentials()
                 .flatMapMany(Flux::fromIterable)
+                .filter(credential -> {
+                    String status = credential.getCredentialStatus();
+                    return status != null && status.equalsIgnoreCase(LifeCycleStatus.VALID.toString());
+                })
                 .flatMap(credential -> {
                     if (isCredentialExpired(credential)) {
                         return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.EXPIRED);
