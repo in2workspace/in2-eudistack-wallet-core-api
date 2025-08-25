@@ -155,15 +155,3 @@ tasks.named("dependencyUpdates").configure {
         isNonStable(it.candidate.version)
     }
 }
-
-tasks.register('printVersion') {
-    doLast {
-        println version
-    }
-}
-
-tasks.register('printProjectName') {
-    doLast {
-        println rootProject.name
-    }
-}
