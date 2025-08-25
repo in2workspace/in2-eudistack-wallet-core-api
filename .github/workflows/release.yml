@@ -44,7 +44,7 @@ jobs:
         id: rand
         shell: bash
         run: |
-          RND=$(printf "%04d" $((RANDOM%10000)))  # 0000..9999
+          RND=$(printf "%04d" $((RANDOM%10000)))
           echo "SNAPSHOT_SUFFIX=-snapshot-${RND}" | tee -a $GITHUB_ENV
 
       - name: Check for existing release tag (only on PR)
