@@ -4,7 +4,6 @@ import es.in2.wallet.application.workflows.issuance.CheckAndUpdateStatusCredenti
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
-import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
@@ -26,46 +25,43 @@ public class WalletInitFilter implements WebFilter, Ordered {
 
     @Override
     public int getOrder() {
-        System.out.println("XIVATO1");
-        return SecurityWebFiltersOrder.AUTHENTICATION.getOrder() + 1;
+        return -100;
     }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        System.out.println("XIVATO2");
+        System.out.println("Executing WalletInitFilter");
         String path = exchange.getRequest().getPath().value();
 
-        if (!path.startsWith("/api")) {
+        if (!path.startsWith("/api/v1/credentials")) {
             return chain.filter(exchange);
         }
 
-        return chain.filter(exchange)
-                .then(
-                        exchange.getPrincipal()
-                                .cast(Authentication.class)
-                                .filter(Authentication::isAuthenticated)
-                                .flatMap(auth -> {
-                                    String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
-                                    if (authHeader == null || !authHeader.startsWith("Bearer ")) return Mono.empty();
+        return exchange.getPrincipal()
+                .cast(Authentication.class)
+                .filter(Authentication::isAuthenticated)
+                .flatMap(auth -> {
+                    String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
-                                    String token = authHeader.substring(7).trim();
-                                    String tokenHash = Integer.toHexString(token.hashCode());
+                    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                        return chain.filter(exchange);
+                    }
 
-                                    if (!executedTokens.add(tokenHash)) {
-                                        log.debug("Workflow already executed for token {}", tokenHash);
-                                        return Mono.empty();
-                                    }
+                    String token = authHeader.substring(7).trim();
+                    String tokenHash = Integer.toHexString(token.hashCode());
 
-                                    String userId = auth.getName();
-                                    String processId = UUID.randomUUID().toString();
-                                    log.info("Executing workflow after login for user {} (token {})", userId, tokenHash);
+                    if (!executedTokens.add(tokenHash)) {
+                        return chain.filter(exchange);
+                    }
 
-                                    return workflow.executeForUser(processId, userId)
-                                            .onErrorResume(e -> {
-                                                log.warn("Workflow error for user {}: {}", userId, e.getMessage());
-                                                return Mono.empty();
-                                            });
-                                })
-                );
+                    String userId = auth.getName();
+                    String processId = UUID.randomUUID().toString();
+                    log.info("Triggered workflow for user {} at /credentials with token {}", userId, tokenHash);
+
+                    return workflow.executeForUser(processId, userId)
+                            .doOnError(e -> log.warn("Workflow error for user {}: {}", userId, e.getMessage()))
+                            .then(chain.filter(exchange));
+                })
+                .switchIfEmpty(chain.filter(exchange));
     }
 }
