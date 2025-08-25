@@ -40,12 +40,9 @@ jobs:
         id: project_version
         run: echo "VERSION=$(./gradlew -q properties | grep '^version:' | awk '{print $2}')" >> $GITHUB_ENV
 
-      - name: Generate numeric random snapshot suffix
-        id: rand
-        shell: bash
-        run: |
-          RND=$(printf "%04d" $((RANDOM%10000)))
-          echo "SNAPSHOT_SUFFIX=-snapshot-${RND}" | tee -a $GITHUB_ENV
+      - name: Compute PR-based snapshot suffix
+        if: github.event_name == 'pull_request'
+        run: echo "SNAPSHOT_SUFFIX=-pr-${{ github.event.number }}" >> $GITHUB_ENV
 
       - name: Check for existing release tag (only on PR)
         if: github.event_name == 'pull_request'
