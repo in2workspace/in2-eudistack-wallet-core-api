@@ -26,43 +26,43 @@ public class WalletInitFilter implements WebFilter, Ordered {
 
     @Override
     public int getOrder() {
+        System.out.println("XIVATO1");
         return SecurityWebFiltersOrder.AUTHENTICATION.getOrder() + 1;
     }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        System.out.println("XIVATO 1");
+        System.out.println("XIVATO2");
         String path = exchange.getRequest().getPath().value();
+
         if (!path.startsWith("/api")) {
             return chain.filter(exchange);
         }
-        System.out.println("XIVATO 2");
+
         return chain.filter(exchange)
                 .then(
                         exchange.getPrincipal()
                                 .cast(Authentication.class)
                                 .filter(Authentication::isAuthenticated)
                                 .flatMap(auth -> {
-                                    System.out.println("XIVATO 3");
                                     String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
-                                    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                                        return Mono.empty();
-                                    }
+                                    if (authHeader == null || !authHeader.startsWith("Bearer ")) return Mono.empty();
 
                                     String token = authHeader.substring(7).trim();
                                     String tokenHash = Integer.toHexString(token.hashCode());
 
                                     if (!executedTokens.add(tokenHash)) {
+                                        log.debug("Workflow already executed for token {}", tokenHash);
                                         return Mono.empty();
                                     }
 
                                     String userId = auth.getName();
                                     String processId = UUID.randomUUID().toString();
-                                    log.info("First authenticated request for token {}, executing workflow for user {}", tokenHash, userId);
+                                    log.info("Executing workflow after login for user {} (token {})", userId, tokenHash);
 
                                     return workflow.executeForUser(processId, userId)
                                             .onErrorResume(e -> {
-                                                log.warn("Workflow error for {}: {}", userId, e.getMessage());
+                                                log.warn("Workflow error for user {}: {}", userId, e.getMessage());
                                                 return Mono.empty();
                                             });
                                 })
