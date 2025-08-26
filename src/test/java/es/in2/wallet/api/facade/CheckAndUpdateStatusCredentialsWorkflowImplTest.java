@@ -6,7 +6,6 @@ import es.in2.wallet.application.dto.CredentialStatus;
 import es.in2.wallet.application.workflows.issuance.impl.CheckAndUpdateStatusCredentialsWorkflowImpl;
 import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.enums.LifeCycleStatus;
-import es.in2.wallet.domain.exceptions.ParseErrorException;
 import es.in2.wallet.domain.services.*;
 import es.in2.wallet.infrastructure.core.config.WebClientConfig;
 import okhttp3.mockwebserver.MockResponse;
@@ -142,14 +141,14 @@ class CheckAndUpdateStatusCredentialsWorkflowImplTest {
                 .statusListIndex(statusListIndex)
                 .build();
 
-        when(credentialService.getAllCredentials()).thenReturn(Mono.just(List.of(credential)));
+        when(credentialService.getAllCredentialsByUser("test")).thenReturn(Mono.just(List.of(credential)));
         when(credentialService.getCredentialJsonVc(credential)).thenReturn(vcJson);
         when(credentialService.getCredentialStatus(credential)).thenReturn(status);
         when(webClient.centralizedWebClient()).thenReturn(WebClient.create());
         when(credentialService.updateCredentialEntityLifeCycleStatus(credential, LifeCycleStatus.REVOKED))
                 .thenReturn(Mono.just(credential));
 
-        StepVerifier.create(checkAndUpdateStatusCredentialsWorkflow.execute("test-process"))
+        StepVerifier.create(checkAndUpdateStatusCredentialsWorkflow.executeForUser("test-process", "test"))
                 .verifyComplete();
 
         server.shutdown();

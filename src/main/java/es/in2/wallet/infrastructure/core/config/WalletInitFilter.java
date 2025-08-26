@@ -26,20 +26,16 @@ public class WalletInitFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        System.out.println("XIVATO1");
         String path = exchange.getRequest().getPath().value();
 
         if (!path.startsWith("/api/v1/credentials")) {
             return chain.filter(exchange);
         }
-        System.out.println("XIVATO2");
 
         String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return chain.filter(exchange);
         }
-
-        System.out.println("XIVATO3");
 
         String token = authHeader.substring(7).trim();
 
@@ -51,7 +47,6 @@ public class WalletInitFilter implements WebFilter {
                                 .flatMap(jwt -> {
                                     String sessionState = jwt.getClaimAsString("session_state");
                                     if (sessionState == null || !executedSessionStates.add(sessionState)) {
-                                        System.out.println("XIVATO4");
                                         return Mono.empty(); // Already executed for this session
                                     }
 
