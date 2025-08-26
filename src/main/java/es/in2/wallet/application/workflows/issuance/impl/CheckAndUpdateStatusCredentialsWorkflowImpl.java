@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -40,33 +42,69 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
 
         return credentialService.getAllCredentials()
                 .flatMapMany(Flux::fromIterable)
-                .flatMap(credential -> {
-                    if (isCredentialExpired(credential)) {
-                        return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.EXPIRED);
-                    }
-
-                    CredentialStatus credentialStatus = credentialService.getCredentialStatus(credential);
-                    if (credentialStatus == null || credentialStatus.statusListCredential() == null) {
-                        log.debug("ProcessID: {} - Credential {} missing credentialStatus", processId, credential.getId());
-                        return Flux.empty();
-                    }
-
-                    String url = credentialStatus.statusListCredential();
-                    String index = credentialStatus.statusListIndex();
-
-                    Mono<List<String>> revokedNoncesMono = nonceCache.computeIfAbsent(url, k -> getRevokedNoncesFromIssuer(k).cache());
-
-                    return revokedNoncesMono.flatMapMany(nonces -> {
-                        boolean isRevoked = nonces.contains(index);
-                        if (isRevoked) {
-                            return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.REVOKED);
-                        }
-                        log.debug("ProcessID: {} - Credential {} not revoked", processId, credential.getId());
-                        return Flux.empty();
-                    });
+                .filter(credential -> {
+                    String status = credential.getCredentialStatus();
+                    return status != null && status.equalsIgnoreCase(LifeCycleStatus.VALID.toString());
                 })
+                .flatMap(credential -> handleCredentialStatusCheck(processId, credential, nonceCache))
                 .then();
     }
+    @Override
+    public Mono<Void> executeForUser(String processId, String userId) {
+        Map<String, Mono<List<String>>> nonceCache = new ConcurrentHashMap<>();
+
+        return credentialService.getAllCredentialsByUser(userId)
+                .flatMapMany(Flux::fromIterable)
+                .filter(credential -> {
+                    String status = credential.getCredentialStatus();
+                    return status != null && status.equalsIgnoreCase(LifeCycleStatus.VALID.toString());
+                })
+                .flatMap(credential -> handleCredentialStatusCheck(processId, credential, nonceCache))
+                .then();
+    }
+
+
+    private Flux<Credential> handleCredentialStatusCheck(String processId, Credential credential, Map<String, Mono<List<String>>> nonceCache) {
+        if (isCredentialExpired(credential)) {
+            return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.EXPIRED);
+        }
+
+        CredentialStatus credentialStatus = credentialService.getCredentialStatus(credential);
+        if (credentialStatus == null || credentialStatus.statusListCredential() == null || credentialStatus.statusListIndex() == null) {
+            log.debug("ProcessID: {} - Credential {} missing credentialStatus", processId, credential.getId());
+            return Flux.empty();
+        }
+
+        String rawUrl = credentialStatus.statusListCredential().trim();
+        String index = credentialStatus.statusListIndex().trim();
+
+        String cleanedUrl;
+        try {
+            cleanedUrl = URI.create(rawUrl).toString();
+        } catch (IllegalArgumentException e) {
+            log.error("ProcessID: {} - Invalid statusListCredential URL '{}' for credential {}: {}", processId, rawUrl, credential.getId(), e.getMessage());
+            return Flux.empty();
+        }
+
+        Mono<List<String>> revokedNoncesMono = nonceCache.computeIfAbsent(cleanedUrl, k ->
+                getRevokedNoncesFromIssuer(k)
+                        .onErrorResume(e -> {
+                            log.error("ProcessID: {} - Error fetching nonces from {}: {}", processId, k, e.toString());
+                            return Mono.just(List.of());
+                        })
+                        .cache()
+        );
+
+        return revokedNoncesMono.flatMapMany(nonces -> {
+            boolean isRevoked = nonces.contains(index);
+            if (isRevoked) {
+                return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.REVOKED);
+            }
+            log.debug("ProcessID: {} - Credential {} not revoked", processId, credential.getId());
+            return Flux.empty();
+        });
+    }
+
 
     private boolean isCredentialExpired(Credential credential) {
         JsonNode vcJson = credentialService.getCredentialJsonVc(credential);

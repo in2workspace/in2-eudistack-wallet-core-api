@@ -187,8 +187,6 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
         try {
             // Convert the request to JSON
             String requestJson = objectMapper.writeValueAsString(credentialRequest);
-            System.out.println("Xivato 1: " + requestJson);
-            System.out.println("Xivato 2: " + credentialEndpoint);
 
             return webClient.centralizedWebClient()
                     .post()
