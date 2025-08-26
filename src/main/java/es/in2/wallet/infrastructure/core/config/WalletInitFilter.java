@@ -3,9 +3,8 @@ package es.in2.wallet.infrastructure.core.config;
 import es.in2.wallet.application.workflows.issuance.CheckAndUpdateStatusCredentialsWorkflow;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.Ordered;
-import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
@@ -22,7 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WalletInitFilter implements WebFilter {
 
     private final CheckAndUpdateStatusCredentialsWorkflow workflow;
-    private final Set<String> executedTokens = ConcurrentHashMap.newKeySet();
+    private final ReactiveJwtDecoder jwtDecoder;
+    private final Set<String> executedSessionStates = ConcurrentHashMap.newKeySet();
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
@@ -34,31 +34,37 @@ public class WalletInitFilter implements WebFilter {
         }
         System.out.println("XIVATO2");
 
+        String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return chain.filter(exchange);
+        }
+
+        System.out.println("XIVATO3");
+
+        String token = authHeader.substring(7).trim();
+
         return exchange.getPrincipal()
                 .cast(Authentication.class)
                 .filter(Authentication::isAuthenticated)
-                .flatMap(auth -> {
-                    String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
-                    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                        return chain.filter(exchange);
-                    }
+                .flatMap(auth ->
+                        jwtDecoder.decode(token)
+                                .flatMap(jwt -> {
+                                    String sessionState = jwt.getClaimAsString("session_state");
+                                    if (sessionState == null || !executedSessionStates.add(sessionState)) {
+                                        System.out.println("XIVATO4");
+                                        return Mono.empty(); // Already executed for this session
+                                    }
 
-                    String token = authHeader.substring(7).trim();
-                    String tokenHash = Integer.toHexString(token.hashCode());
+                                    String userId = auth.getName();
+                                    String processId = UUID.randomUUID().toString();
 
-                    if (!executedTokens.add(tokenHash)) {
-                        return chain.filter(exchange);
-                    }
+                                    log.debug("First login for session {}, executing workflow for user {}", sessionState, userId);
 
-                    String userId = auth.getName();
-                    String processId = UUID.randomUUID().toString();
-                    log.info("First authenticated request for token {}, executing workflow for user {}", tokenHash, userId);
-
-                    return workflow.executeForUser(processId, userId)
-                            .doOnError(e -> log.warn("Workflow error for {}: {}", userId, e.getMessage()))
-                            .onErrorResume(e -> Mono.empty())
-                            .then(chain.filter(exchange));
-                })
-                .switchIfEmpty(chain.filter(exchange));
+                                    return workflow.executeForUser(processId, userId)
+                                            .doOnError(e -> log.warn("Workflow error for {}: {}", userId, e.getMessage()))
+                                            .onErrorResume(e -> Mono.empty());
+                                })
+                )
+                .then(chain.filter(exchange));
     }
 }
