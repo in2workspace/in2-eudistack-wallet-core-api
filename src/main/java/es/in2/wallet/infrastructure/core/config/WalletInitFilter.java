@@ -29,7 +29,7 @@ public class WalletInitFilter implements WebFilter {
         System.out.println("XIVATO1");
         String path = exchange.getRequest().getPath().value();
 
-        if (!path.startsWith("/api")) {
+        if (!path.startsWith("/api/v1/credentials")) {
             return chain.filter(exchange);
         }
         System.out.println("XIVATO2");
