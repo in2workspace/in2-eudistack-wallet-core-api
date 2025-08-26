@@ -567,6 +567,31 @@ class CredentialServiceImplTest {
     }
 
     @Test
+    void testGetAllCredentialsByUser_shouldReturnList_whenCredentialsExist() {
+        Credential c1 = Credential.builder().credentialId("cred-1").build();
+        Credential c2 = Credential.builder().credentialId("cred-2").build();
+        UUID testUserId = UUID.randomUUID();
+
+        when(credentialRepository.findAllByUserId(testUserId)).thenReturn(Flux.just(c1, c2));
+
+        StepVerifier.create(credentialRepositoryService.getAllCredentialsByUser(testUserId.toString()))
+                .expectNextMatches(list -> list.size() == 2 && list.get(0).getCredentialId().equals("cred-1"))
+                .verifyComplete();
+    }
+
+    @Test
+    void testGetAllCredentialsByUser_shouldThrowException_whenNoCredentialsExist() {
+        UUID testUserId = UUID.randomUUID();
+        when(credentialRepository.findAllByUserId(testUserId)).thenReturn(Flux.empty());
+
+        StepVerifier.create(credentialRepositoryService.getAllCredentialsByUser(testUserId.toString()))
+                .expectErrorMatches(err ->
+                        err instanceof NoSuchVerifiableCredentialException &&
+                                err.getMessage().equals("No credentials found"))
+                .verify();
+    }
+
+    @Test
     void testGetCredentialStatus_shouldReturnStatus_whenFieldExists() throws Exception {
         String json = """
         {
