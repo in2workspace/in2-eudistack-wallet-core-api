@@ -3,7 +3,6 @@ package es.in2.wallet.api.ebsi.comformance.config;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import es.in2.wallet.application.dto.CredentialsBasicInfo;
 import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.application.ports.AppConfig;
 import es.in2.wallet.domain.services.CredentialService;

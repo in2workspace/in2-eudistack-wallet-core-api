@@ -3,7 +3,6 @@ package es.in2.wallet.api.facade;
 import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.application.workflows.presentation.impl.AttestationExchangeTurnstileWorkflowImpl;
 import es.in2.wallet.domain.exceptions.ParseErrorException;
-import es.in2.wallet.application.dto.CredentialsBasicInfo;
 import es.in2.wallet.domain.services.CborGenerationService;
 import es.in2.wallet.domain.services.PresentationService;
 import org.junit.jupiter.api.Test;

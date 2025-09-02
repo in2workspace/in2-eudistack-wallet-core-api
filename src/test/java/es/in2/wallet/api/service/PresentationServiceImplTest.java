@@ -2,7 +2,6 @@ package es.in2.wallet.api.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import es.in2.wallet.application.dto.CredentialsBasicInfo;
 import es.in2.wallet.application.dto.VcSelectorResponse;
 import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.application.ports.AppConfig;

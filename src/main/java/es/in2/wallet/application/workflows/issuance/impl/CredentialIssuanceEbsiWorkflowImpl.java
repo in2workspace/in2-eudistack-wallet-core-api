@@ -154,7 +154,7 @@ public class CredentialIssuanceEbsiWorkflowImpl implements CredentialIssuanceEbs
                         format
                 ))
                 .doOnNext(credentialUuid ->
-                        log.info("ProcessID: {} - Saved credentialUuid: {}", processId, credentialUuid.toString())
+                        log.info("ProcessID: {} - Saved credentialUuid: {}", processId, credentialUuid)
                 )
                 // If status is ACCEPTED, save deferred metadata; otherwise, skip
                 .flatMap(credentialUuid -> {
@@ -169,7 +169,7 @@ public class CredentialIssuanceEbsiWorkflowImpl implements CredentialIssuanceEbs
                                         credentialIssuerMetadata.deferredCredentialEndpoint()
                                 )
                                 .doOnNext(deferredUuid ->
-                                        log.info("ProcessID: {} - Deferred credential metadata saved with UUID: {}", processId, deferredUuid.toString())
+                                        log.info("ProcessID: {} - Deferred credential metadata saved with UUID: {}", processId, deferredUuid)
                                 )
                                 .then();
                     } else {

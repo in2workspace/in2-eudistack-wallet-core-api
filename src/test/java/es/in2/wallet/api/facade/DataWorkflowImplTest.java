@@ -49,25 +49,28 @@ class DataWorkflowImplTest {
         ObjectMapper objectMapper2 = new ObjectMapper();
         JsonNode credentialSubject = objectMapper2.readTree(jsonSubject);
 
-        String jsonIssuer = "" +
-                "\"issuer\": {\n" +
-                "    \"id\"          : \"did:elsi:VATES-A12345678\"                                ,\n" +
-                "    \"organization\": \"TRUST SERVICES, S.L.\"                                    ,\n" +
-                "    \"country\"     : \"ES\"                                                      ,\n" +
-                "    \"commonName\"  : \"TRUST SERVICE ELECTRONIC SEAL FOR VERIFIABLE CREDENTIALS\",\n" +
-                "    \"serialNumber\": \"610dde5a0000000003\"\n" +
-                "  }";
+        String jsonIssuer = """
+        "issuer": {
+            "id"          : "did:elsi:VATES-A12345678"                                ,
+            "organization": "TRUST SERVICES, S.L."                                    ,
+            "country"     : "ES"                                                      ,
+            "commonName"  : "TRUST SERVICE ELECTRONIC SEAL FOR VERIFIABLE CREDENTIALS",
+            "serialNumber": "610dde5a0000000003"
+          }
+        """;
+
         ObjectMapper objectMapper3 = new ObjectMapper();
         JsonNode issuer = objectMapper3.readTree(jsonIssuer);
 
-        String jsonStatus = "" +
-                "{\n" +
-                "    \"id\": \"https://issuer.dome-marketplace.eu/credentials/status/1#urn:uuid:8c7a6213-544d-450d-8e3d-b41fa9009198\",\n" +
-                "    \"type\": \"PlainListEntity\",\n" +
-                "    \"statusPurpose\": \"revocation\",\n" +
-                "    \"statusListIndex\": \"urn:uuid:8c7a6213-544d-450d-8e3d-b41fa9009198\",\n" +
-                "    \"statusListCredential\": \"https://issuer.dome-marketplace.eu/credentials/status/1\"\n" +
-                "  }";
+        String jsonStatus = """
+        {
+            "id": "https://issuer.dome-marketplace.eu/credentials/status/1#urn:uuid:8c7a6213-544d-450d-8e3d-b41fa9009198",
+            "type": "PlainListEntity",
+            "statusPurpose": "revocation",
+            "statusListIndex": "urn:uuid:8c7a6213-544d-450d-8e3d-b41fa9009198",
+            "statusListCredential": "https://issuer.dome-marketplace.eu/credentials/status/1"
+          }
+        """;
         ObjectMapper objectMapper4 = new ObjectMapper();
         JsonNode credentialStatusNode = objectMapper4.readTree(jsonStatus);
         CredentialStatus credentialStatus = CredentialStatus.builder()
