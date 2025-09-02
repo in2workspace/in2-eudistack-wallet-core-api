@@ -109,6 +109,7 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
      *  - Otherwise, returns the existing response.
      * Returns a Mono<CredentialResponseWithStatus>.
      */
+    //TODO: Handle deferred or immediate credential response
     private Mono<CredentialResponseWithStatus> handleCredentialResponse(
             CredentialResponseWithStatus responseWithStatus,
             CredentialIssuerMetadata credentialIssuerMetadata
