@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed credential request wf
 - Label credential request
 - Machine credential delete
+- Call credential status endpoint without Authorization header
 
 ## [v1.4.9](https://github.com/in2workspace/in2-wallet-api/releases/tag/v1.4.9)
 ### Fixed
