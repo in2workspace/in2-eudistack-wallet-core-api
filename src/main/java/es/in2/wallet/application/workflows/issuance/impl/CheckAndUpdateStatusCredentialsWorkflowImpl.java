@@ -138,7 +138,6 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
         return webClient.centralizedWebClient()
                 .get()
                 .uri(statusListCredentialUrl)
-                .header(HEADER_AUTHORIZATION, BEARER)
                 .exchangeToMono(response -> {
                     if (response.statusCode().isError()) {
                         return response.bodyToMono(String.class)
