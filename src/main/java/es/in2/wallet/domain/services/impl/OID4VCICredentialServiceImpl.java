@@ -14,7 +14,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -58,9 +57,7 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
                         )
                 )
                 // Handle deferred or immediate credential response
-                .flatMap(responseWithStatus ->
-                        handleCredentialResponse(responseWithStatus, credentialIssuerMetadata)
-                )
+                .flatMap(this::handleCredentialResponse)
                 .doOnSuccess(finalResponse ->
                         log.info(
                                 "ProcessID: {} - Final CredentialResponseWithStatus: {}",
@@ -111,16 +108,8 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
      */
     //TODO: Handle deferred or immediate credential response
     private Mono<CredentialResponseWithStatus> handleCredentialResponse(
-            CredentialResponseWithStatus responseWithStatus,
-            CredentialIssuerMetadata credentialIssuerMetadata
+            CredentialResponseWithStatus responseWithStatus
     ) {
-        // Since credentialResponse is already a parsed object, no JSON parsing is needed here
-        CredentialResponse credentialResponse = responseWithStatus.credentialResponse();
-
-        // If an transactionId is present, proceed with the deferred flow
-        // TO DO: finish handleDeferredCredential if (credentialResponse.transactionId() != null)
-
-        // If no acceptanceToken is present, just return the existing response
         return Mono.just(responseWithStatus);
 
     }
