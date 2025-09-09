@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import es.in2.wallet.application.dto.CredentialResponse;
 import es.in2.wallet.application.ports.AppConfig;
+import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.exceptions.NoSuchVerifiableCredentialException;
 import es.in2.wallet.domain.services.CredentialService;
 import es.in2.wallet.domain.services.DidKeyGeneratorService;
@@ -22,6 +23,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -210,6 +212,7 @@ public class EbsiConfig {
         String credentialId = UUID.randomUUID().toString();
         String plainJsonVc = """
         {
+          "@context": ["https://www.w3.org/2018/credentials/v1", "https://example.com/context/extra"],
           "id": "%s",
           "type": ["VerifiableCredential", "ExampleCredential"],
           "credentialSubject": {
@@ -221,8 +224,12 @@ public class EbsiConfig {
                 .trim();
 
         // We'll store it as a plain credential (format=null => code checks "if format == null => parseAsPlainJson(...)")
+        List<CredentialResponse.Credentials> credentialList = List.of(
+                new CredentialResponse.Credentials(plainJsonVc)
+        );
+
         CredentialResponse newCredentialResponse = CredentialResponse.builder()
-                .credential(plainJsonVc)
+                .credentials(credentialList)
                 .transactionId(UUID.randomUUID().toString())
                 .build();
 

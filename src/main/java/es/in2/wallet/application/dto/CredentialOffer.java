@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
 
 import java.util.List;
+import java.util.Set;
 
 @Schema(description = "This class is used to represent the Credential Offer by Reference using " +
         "credential_offer_uri parameter for a Pre-Authorized Code Flow. " +
@@ -14,7 +15,6 @@ import java.util.List;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record CredentialOffer(
-        @Schema(example = "https://client-issuer.com")
         @JsonProperty("credential_issuer")
         @NotBlank
         String credentialIssuer,
@@ -23,7 +23,7 @@ public record CredentialOffer(
         List<Credential> credentials,
 
         @JsonProperty("credential_configuration_ids")
-        List<String> credentialConfigurationsIds,
+        Set<String> credentialConfigurationsIds,
         @Schema(implementation = Grant.class)
         @JsonProperty("grants")
         Grant grant

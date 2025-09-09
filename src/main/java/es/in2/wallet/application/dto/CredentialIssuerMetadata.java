@@ -16,13 +16,15 @@ public record CredentialIssuerMetadata(
         @JsonProperty("deferred_credential_endpoint") String deferredCredentialEndpoint,
         @JsonProperty("credentials_supported") List<CredentialsSupported> credentialsSupported,
 
-        //From this object, we only serialize the format property because, for the moment, it is the only object we need to interpret and obtain to perform the credential Request for the DOME PROFILE
+        //From this object, we only serialize the format property and cryptographic_binding_methods_supported because, for the moment, they are the only objects we need to interpret and obtain to perform the credential Request for the DOME PROFILE
         @JsonProperty("credential_configurations_supported") Map<String,CredentialsConfigurationsSupported> credentialsConfigurationsSupported
 ) {
     @Builder
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record CredentialsConfigurationsSupported(
-            @JsonProperty("format") String format
+            @JsonProperty("format") String format,
+            @JsonProperty("cryptographic_binding_methods_supported") List<String> cryptographicBindingMethodsSupported
+
     ){
 
     }

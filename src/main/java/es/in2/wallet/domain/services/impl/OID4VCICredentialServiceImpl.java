@@ -14,8 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 import static es.in2.wallet.domain.utils.ApplicationConstants.*;
 
@@ -33,11 +33,11 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
             TokenResponse tokenResponse,
             CredentialIssuerMetadata credentialIssuerMetadata,
             String format,
-            List<String> types
+            String credentialConfigurationId
     ) {
         String processId = MDC.get(PROCESS_ID);
 
-        return buildCredentialRequest(jwt, format, types)
+        return buildCredentialRequest(jwt, format, credentialConfigurationId)
                 .doOnSuccess(request ->
                         log.info("ProcessID: {} - CredentialRequest: {}", processId, request)
                 )
@@ -57,9 +57,7 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
                         )
                 )
                 // Handle deferred or immediate credential response
-                .flatMap(responseWithStatus ->
-                        handleCredentialResponse(responseWithStatus, credentialIssuerMetadata)
-                )
+                .flatMap(this::handleCredentialResponse)
                 .doOnSuccess(finalResponse ->
                         log.info(
                                 "ProcessID: {} - Final CredentialResponseWithStatus: {}",
@@ -96,34 +94,24 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
                 );
     }
 
+    @Override
+    public String getNonceValue() {
+        //TO DO: Call nonce_endpoint
+        return null;
+    }
+
     /**
      * Handles immediate or deferred credential responses:
      *  - If acceptanceToken is present, waits 10 seconds then calls handleDeferredCredential.
      *  - Otherwise, returns the existing response.
      * Returns a Mono<CredentialResponseWithStatus>.
      */
+    //TODO: Handle deferred or immediate credential response
     private Mono<CredentialResponseWithStatus> handleCredentialResponse(
-            CredentialResponseWithStatus responseWithStatus,
-            CredentialIssuerMetadata credentialIssuerMetadata
+            CredentialResponseWithStatus responseWithStatus
     ) {
-        // Since credentialResponse is already a parsed object, no JSON parsing is needed here
-        CredentialResponse credentialResponse = responseWithStatus.credentialResponse();
+        return Mono.just(responseWithStatus);
 
-        if (credentialResponse.acceptanceToken() != null) {
-            // If an acceptanceToken is present, proceed with the deferred flow
-            return Mono.delay(Duration.ofSeconds(10))
-                    .then(handleDeferredCredential(credentialResponse.acceptanceToken(), credentialIssuerMetadata))
-                    .map(deferredResponse ->
-                            // Build a new CredentialResponseWithStatus with the updated CredentialResponse
-                            CredentialResponseWithStatus.builder()
-                                    .statusCode(responseWithStatus.statusCode())
-                                    .credentialResponse(deferredResponse)
-                                    .build()
-                    );
-        } else {
-            // If no acceptanceToken is present, just return the existing response
-            return Mono.just(responseWithStatus);
-        }
     }
 
     /**
@@ -132,14 +120,15 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
      *  - Checks if a new acceptanceToken is present; if so, recurses.
      *  - If the credential is available, returns it.
      */
-    private Mono<CredentialResponse> handleDeferredCredential(
-            String acceptanceToken,
+    public Mono<CredentialResponse> handleDeferredCredential(
+            String transactionId,
             CredentialIssuerMetadata credentialIssuerMetadata
     ) {
         return webClient.centralizedWebClient()
                 .post()
                 .uri(credentialIssuerMetadata.deferredCredentialEndpoint())
-                .header(HEADER_AUTHORIZATION, BEARER + acceptanceToken)
+                .header(HEADER_AUTHORIZATION, BEARER)
+                .bodyValue(Map.of("transaction_id", transactionId))
                 .exchangeToMono(response -> {
                     if (response.statusCode().is4xxClientError() || response.statusCode().is5xxServerError()) {
                         return Mono.error(new RuntimeException(
@@ -155,17 +144,17 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
                         log.debug("Deferred flow body: {}", responseBody);
                         CredentialResponse credentialResponse = objectMapper.readValue(responseBody, CredentialResponse.class);
 
-                        // Recursive call if a new acceptanceToken is received
-                        if (credentialResponse.acceptanceToken() != null
-                                && !credentialResponse.acceptanceToken().equals(acceptanceToken)) {
-                            return handleDeferredCredential(credentialResponse.acceptanceToken(), credentialIssuerMetadata);
+                        // Recursive call if a new transactionId is received
+                        if (credentialResponse.transactionId() != null
+                                && !credentialResponse.transactionId().equals(transactionId)) {
+                            return handleDeferredCredential(credentialResponse.transactionId(),credentialIssuerMetadata);
                         }
                         // If the credential is available, return it
-                        if (credentialResponse.credential() != null) {
+                        if (credentialResponse.credentials().get(0).credential() != null) {
                             return Mono.just(credentialResponse);
                         }
                         return Mono.error(new IllegalStateException(
-                                "No credential or new acceptance token received in deferred flow"
+                                "No credential or new transaction id received in deferred flow"
                         ));
                     } catch (Exception e) {
                         log.error("Error while processing deferred CredentialResponse", e);
@@ -229,37 +218,45 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
     }
 
     /**
-     * Builds the request object (CredentialRequest or FiwareCredentialRequest) depending on the 'types' list.
+     * Builds the request object CredentialRequest depending on the format and types.
      */
-    private Mono<?> buildCredentialRequest(String jwt, String format, List<String> types) {
-        if (types == null) {
-            // If 'types' is null, assume a standard CredentialRequest
-            return Mono.just(
-                    CredentialRequest.builder()
-                            .format(format)
-                            .proof(CredentialRequest.Proofs.builder().proofType("jwt").jwt(List.of(jwt)).build())
-                            .build()
-            ).doOnNext(req ->
-                    log.debug("Credential Request Body for DOME Profile: {}", req)
-            );
-        } else if (types.size() > 1) {
-            // If multiple types, return a standard CredentialRequest with a list
-            return Mono.just(
-                    CredentialRequest.builder()
-                            .format(format)
-                            .types(types)
-                            .proof(CredentialRequest.Proofs.builder().proofType("jwt").jwt(List.of(jwt)).build())
-                            .build()
-            );
-        } else {
-            // If exactly one type, build a FiwareCredentialRequest
-            return Mono.just(
-                    FiwareCredentialRequest.builder()
-                            .format(format)
-                            .type(types.get(0))
-                            .types(types)
-                            .build()
-            );
+    private Mono<?> buildCredentialRequest(String jwt, String format, String credentialConfigurationId) {
+        try{
+            if(credentialConfigurationId != null) {
+                if (format.equals(JWT_VC_JSON)) {
+                    if (jwt != null && !jwt.isBlank()) {
+                        return Mono.just(
+                                CredentialRequest.builder()
+                                        .format(format)
+                                        .credentialConfigurationId(credentialConfigurationId)
+                                        .proof(CredentialRequest.Proofs.builder().proofType("jwt").jwt(List.of(jwt)).build())
+                                        .build()
+                        ).doOnNext(req ->
+                                log.debug("Credential Request Body for DOME Profile with proof: {}", req)
+                        );
+                    } else {
+                        return Mono.just(
+                                CredentialRequest.builder()
+                                        .format(format)
+                                        .credentialConfigurationId(credentialConfigurationId)
+                                        .build()
+                        ).doOnNext(req ->
+                                log.debug("Credential Request Body for DOME Profile: {}", req)
+                        );
+                    }
+
+                }
+                return Mono.error(new IllegalArgumentException(
+                        "Format not supported: " + format
+                ));
+            }
+            return Mono.error(new IllegalArgumentException(
+                    "Credentials configurations ids not provided"
+            ));
+
+        }catch (Exception error){
+            return Mono.error(new RuntimeException(
+                    "Error while building credential request, error: " + error));
         }
     }
 }

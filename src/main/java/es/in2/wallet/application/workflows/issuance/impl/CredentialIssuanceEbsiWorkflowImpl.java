@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 import static es.in2.wallet.domain.utils.ApplicationUtils.*;
 
 @Slf4j
@@ -68,7 +70,7 @@ public class CredentialIssuanceEbsiWorkflowImpl implements CredentialIssuanceEbs
         return ebsiConfig.getDid()
                 .flatMap(did -> preAuthorizedService.getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken)
                         .flatMap(tokenResponse -> getCredential(
-                                processId,authorizationToken,tokenResponse,credentialOffer,credentialIssuerMetadata,did,tokenResponse.cNonce())));
+                                processId,authorizationToken,tokenResponse,credentialOffer,credentialIssuerMetadata,did,oid4vciCredentialService.getNonceValue())));
     }
 
 
@@ -97,7 +99,7 @@ public class CredentialIssuanceEbsiWorkflowImpl implements CredentialIssuanceEbs
                         )
                         // get Credentials
                         .flatMap(tokenResponse -> getCredential(
-                                 processId,authorizationToken,tokenResponse, credentialOffer, credentialIssuerMetadata, did, tokenResponse.cNonce()
+                                 processId,authorizationToken,tokenResponse, credentialOffer, credentialIssuerMetadata, did, oid4vciCredentialService.getNonceValue()
                         ))
                 );
     }
@@ -112,10 +114,23 @@ public class CredentialIssuanceEbsiWorkflowImpl implements CredentialIssuanceEbs
     }
 
     private Mono<Void> getCredential(String processId, String authorizationToken, TokenResponse tokenResponse, CredentialOffer credentialOffer, CredentialIssuerMetadata credentialIssuerMetadata, String did, String nonce) {
-            return buildAndSignCredentialRequest(nonce, did, credentialIssuerMetadata.credentialIssuer())
-                    .flatMap(jwt -> oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), credentialOffer.credentials().get(0).types()))
-                    .flatMap(credentialResponse -> handleCredentialResponse(processId,credentialResponse ,authorizationToken, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format()));
+        String credentialConfigurationId = List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0);
+        CredentialIssuerMetadata.CredentialsConfigurationsSupported config =
+                credentialIssuerMetadata.credentialsConfigurationsSupported().get(credentialConfigurationId);
+
+        Mono<String> jwtMono;
+        if (config != null && config.cryptographicBindingMethodsSupported() != null
+                && !config.cryptographicBindingMethodsSupported().isEmpty()) {
+            jwtMono = buildAndSignCredentialRequest(nonce, did, credentialIssuerMetadata.credentialIssuer());
+        } else {
+            jwtMono = Mono.justOrEmpty((String) null);
+        }
+        String format = credentialOffer.credentials().get(0).format();
+        return jwtMono
+                .flatMap(jwt -> oid4vciCredentialService.getCredential(jwt,tokenResponse,credentialIssuerMetadata,format,credentialConfigurationId))
+                .flatMap(credentialResponse -> handleCredentialResponse(processId, credentialResponse, authorizationToken, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format()));
     }
+
 
     private Mono<Void> handleCredentialResponse(
             String processId,
@@ -139,7 +154,7 @@ public class CredentialIssuanceEbsiWorkflowImpl implements CredentialIssuanceEbs
                         format
                 ))
                 .doOnNext(credentialUuid ->
-                        log.info("ProcessID: {} - Saved credentialUuid: {}", processId, credentialUuid.toString())
+                        log.info("ProcessID: {} - Saved credentialUuid: {}", processId, credentialUuid)
                 )
                 // If status is ACCEPTED, save deferred metadata; otherwise, skip
                 .flatMap(credentialUuid -> {
@@ -154,7 +169,7 @@ public class CredentialIssuanceEbsiWorkflowImpl implements CredentialIssuanceEbs
                                         credentialIssuerMetadata.deferredCredentialEndpoint()
                                 )
                                 .doOnNext(deferredUuid ->
-                                        log.info("ProcessID: {} - Deferred credential metadata saved with UUID: {}", processId, deferredUuid.toString())
+                                        log.info("ProcessID: {} - Deferred credential metadata saved with UUID: {}", processId, deferredUuid)
                                 )
                                 .then();
                     } else {

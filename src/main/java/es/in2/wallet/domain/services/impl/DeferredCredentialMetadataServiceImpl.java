@@ -20,9 +20,9 @@ public class DeferredCredentialMetadataServiceImpl implements DeferredCredential
     private final DeferredCredentialMetadataRepository deferredCredentialMetadataRepository;
 
     @Override
-    public Mono<UUID> saveDeferredCredentialMetadata(
+    public Mono<String> saveDeferredCredentialMetadata(
             String processId,
-            UUID credentialId,
+            String credentialId,
             String transactionId,
             String accessToken,
             String deferredEndpoint
@@ -38,7 +38,7 @@ public class DeferredCredentialMetadataServiceImpl implements DeferredCredential
                         .updatedAt(now)
                 .build())
                 .then(Mono.just(credentialId))
-                .doOnSuccess(credentialUuid -> log.info("[Process ID: {}] Deferred credential metadata for credential ID {} saved successfully.", processId, credentialUuid.toString()));
+                .doOnSuccess(savedCredentialId -> log.info("[Process ID: {}] Deferred credential metadata for credential ID {} saved successfully.", processId, savedCredentialId));
     }
 
     @Override
@@ -99,7 +99,7 @@ public class DeferredCredentialMetadataServiceImpl implements DeferredCredential
     }
 
     private Mono<DeferredCredentialMetadata> findOrError(String credentialId) {
-        return deferredCredentialMetadataRepository.findByCredentialId(UUID.fromString(credentialId))
+        return deferredCredentialMetadataRepository.findByCredentialId(credentialId)
                 .switchIfEmpty(Mono.error(new NoSuchDeferredCredentialMetadataException(
                         "No deferred credential metadata found for credentialId: " + credentialId
                 )));

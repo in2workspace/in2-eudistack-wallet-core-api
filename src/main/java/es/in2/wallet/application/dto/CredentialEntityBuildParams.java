@@ -2,7 +2,7 @@ package es.in2.wallet.application.dto;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import es.in2.wallet.domain.enums.CredentialFormats;
-import es.in2.wallet.domain.enums.CredentialStatus;
+import es.in2.wallet.domain.enums.LifeCycleStatus;
 import lombok.Builder;
 
 import java.time.Instant;
@@ -11,13 +11,13 @@ import java.util.UUID;
 
 @Builder
 public record CredentialEntityBuildParams(
-        UUID credentialId,
+        String credentialId,
         UUID userId,
         List<String> credentialTypes,
         CredentialFormats credentialFormat,
         String credentialData,
         JsonNode vcJson,
-        CredentialStatus credentialStatus,
+        LifeCycleStatus lifeCycleStatus,
         Instant currentTime
 ) {}
 

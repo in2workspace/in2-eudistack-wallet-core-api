@@ -1,6 +1,7 @@
 package es.in2.wallet.application.workflows.data.impl;
 
 import es.in2.wallet.application.dto.CredentialsBasicInfo;
+import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.application.ports.VaultService;
 import es.in2.wallet.application.workflows.data.DataWorkflow;
 import es.in2.wallet.domain.services.CredentialService;
@@ -26,9 +27,12 @@ public class DataWorkflowImpl implements DataWorkflow {
      * @param userId    The unique identifier of the user whose VCs are to be retrieved.
      */
     @Override
-    public Mono<List<CredentialsBasicInfo>> getAllCredentialsByUserId(String processId, String userId) {
+    public Mono<List<VerifiableCredential>> getAllCredentialsByUserId(String processId, String userId) {
         return credentialService.getCredentialsByUserId(processId, userId)
                 .doOnSuccess(list -> log.info("Retrieved VCs for userId: {}", userId))
+                .doOnError(error ->
+                        log.error("Error while retrieving VCs for userId: {}", userId, error)
+                )
                 .onErrorResume(Mono::error);
     }
 

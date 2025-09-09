@@ -3,10 +3,10 @@ package es.in2.wallet.api.facade;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import es.in2.wallet.application.dto.CredentialsBasicInfo;
+import es.in2.wallet.application.dto.CredentialStatus;
+import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.application.ports.VaultService;
 import es.in2.wallet.application.workflows.data.impl.DataWorkflowImpl;
-import es.in2.wallet.domain.enums.CredentialStatus;
 import es.in2.wallet.domain.services.CredentialService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,7 +49,39 @@ class DataWorkflowImplTest {
         ObjectMapper objectMapper2 = new ObjectMapper();
         JsonNode credentialSubject = objectMapper2.readTree(jsonSubject);
 
-        List<CredentialsBasicInfo> expectedCredentials = List.of(new CredentialsBasicInfo("id1", List.of("type"), CredentialStatus.VALID, List.of("jwt_vc", "cwt_vc"), credentialSubject, ZonedDateTime.now()));
+        String jsonIssuer = """
+        "issuer": {
+            "id"          : "did:elsi:VATES-A12345678"                                ,
+            "organization": "TRUST SERVICES, S.L."                                    ,
+            "country"     : "ES"                                                      ,
+            "commonName"  : "TRUST SERVICE ELECTRONIC SEAL FOR VERIFIABLE CREDENTIALS",
+            "serialNumber": "610dde5a0000000003"
+          }
+        """;
+
+        ObjectMapper objectMapper3 = new ObjectMapper();
+        JsonNode issuer = objectMapper3.readTree(jsonIssuer);
+
+        String jsonStatus = """
+        {
+            "id": "https://issuer.dome-marketplace.eu/credentials/status/1#urn:uuid:8c7a6213-544d-450d-8e3d-b41fa9009198",
+            "type": "PlainListEntity",
+            "statusPurpose": "revocation",
+            "statusListIndex": "urn:uuid:8c7a6213-544d-450d-8e3d-b41fa9009198",
+            "statusListCredential": "https://issuer.dome-marketplace.eu/credentials/status/1"
+          }
+        """;
+        ObjectMapper objectMapper4 = new ObjectMapper();
+        JsonNode credentialStatusNode = objectMapper4.readTree(jsonStatus);
+        CredentialStatus credentialStatus = CredentialStatus.builder()
+                .id(credentialStatusNode.get("id").asText())
+                .type(credentialStatusNode.get("type").asText())
+                .statusPurpose(credentialStatusNode.get("statusPurpose").asText())
+                .statusListIndex(credentialStatusNode.get("statusListIndex").asText())
+                .statusListCredential(credentialStatusNode.get("statusListCredential").asText())
+                .build();
+
+        List<VerifiableCredential> expectedCredentials = List.of(new VerifiableCredential(List.of("context"),"id1", List.of("type"), "VALID", "name", "desc", issuer, ZonedDateTime.now().toString(), ZonedDateTime.now().toString(), credentialSubject, credentialStatus, "ofdasjfsdojgofdjgodfjgoodjgojgo"));
 
         when(credentialService.getCredentialsByUserId(processId, userId)).thenReturn(Mono.just(expectedCredentials));
 
@@ -58,6 +90,27 @@ class DataWorkflowImplTest {
                 .verifyComplete();
         verify(credentialService).getCredentialsByUserId(processId, userId);
     }
+
+    @Test
+    void getUserVCs_WhenCredentialServiceFails_ShouldReturnError() {
+        String processId = "process1";
+        String userId = "user1";
+
+        RuntimeException simulatedException = new RuntimeException("Database connection failed");
+
+        when(credentialService.getCredentialsByUserId(processId, userId))
+                .thenReturn(Mono.error(simulatedException));
+
+        StepVerifier.create(userDataFacadeService.getAllCredentialsByUserId(processId, userId))
+                .expectErrorMatches(throwable ->
+                        throwable instanceof RuntimeException &&
+                                throwable.getMessage().equals("Database connection failed")
+                )
+                .verify();
+
+        verify(credentialService).getCredentialsByUserId(processId, userId);
+    }
+
 
 
     @Test

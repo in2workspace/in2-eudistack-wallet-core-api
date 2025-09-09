@@ -15,9 +15,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.util.List;
 import java.util.UUID;
 
-import static es.in2.wallet.domain.utils.ApplicationConstants.JWT_VC;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,21 +38,23 @@ class DeferredCredentialDomeProfileWorkflowImplTest {
         String processId = "processId";
         String userId = UUID.randomUUID().toString();
         String credentialId = UUID.randomUUID().toString();
-        UUID credentialUuid = UUID.fromString(credentialId);
         UUID transactionUuid = UUID.randomUUID();
         String accessToken = "access123";
         String deferredEndpoint = "https://example.com/callback";
 
         DeferredCredentialMetadata deferredCredentialMetadata = DeferredCredentialMetadata.builder()
-                .credentialId(credentialUuid)
+                .credentialId(credentialId)
                 .transactionId(transactionUuid)
                 .accessToken(accessToken)
                 .deferredEndpoint(deferredEndpoint)
                 .build();
 
+        List<CredentialResponse.Credentials> credentialList = List.of(
+                new CredentialResponse.Credentials("ey134...")
+        );
+
         CredentialResponse credentialResponse = CredentialResponse.builder()
-                .credential("ey134...")
-                .format(JWT_VC)
+                .credentials(credentialList)
                 .build();
 
         CredentialResponseWithStatus credentialResponseWithStatus = CredentialResponseWithStatus.builder()
@@ -79,14 +81,13 @@ class DeferredCredentialDomeProfileWorkflowImplTest {
         String processId = "processId";
         String userId = UUID.randomUUID().toString();
         String credentialId = UUID.randomUUID().toString();
-        UUID credentialUuid = UUID.fromString(credentialId);
         UUID transactionUuid = UUID.randomUUID();
         String newTransactionUuid = UUID.randomUUID().toString();
         String accessToken = "access123";
         String deferredEndpoint = "https://example.com/callback";
 
         DeferredCredentialMetadata deferredCredentialMetadata = DeferredCredentialMetadata.builder()
-                .credentialId(credentialUuid)
+                .credentialId(credentialId)
                 .transactionId(transactionUuid)
                 .accessToken(accessToken)
                 .deferredEndpoint(deferredEndpoint)

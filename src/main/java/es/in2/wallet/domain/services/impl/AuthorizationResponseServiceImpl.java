@@ -209,6 +209,9 @@ public class AuthorizationResponseServiceImpl implements AuthorizationResponseSe
                         if (response.statusCode().value() == 401) {
                             log.warn("ProcessID: {} - Unauthorized, status: 401: Error: {}", processId, response);
                             return Mono.error(new AttestationUnauthorizedException("Attestation process returned an Unauthorized access error: " + response.statusCode()));
+                        } else if(response.statusCode().value() == 403) {
+                            log.warn("ProcessID: {} - Forbidden, status: 403: Error: {}", processId, response);
+                            return Mono.error(new RevokedCredentialErrorException("Attestation process returned a Forbidden access error: " + response.statusCode()));
                         } else {
                             log.warn("ProcessID: {} - Client error, status: {}: Error: {}", processId, response.statusCode(), response);
                             return Mono.error(new AttestationClientErrorException("Attestation process returned a Client error: " + response.statusCode()));

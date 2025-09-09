@@ -22,6 +22,7 @@ public class ProofJWTServiceImpl implements ProofJWTService {
     @Override
     public Mono<JsonNode> buildCredentialRequest(String nonce, String issuer, String did) {
         try {
+            log.info("Nonce: {}, Issuer: {}, DID: {}", nonce, issuer, did);
             Instant issueTime = Instant.now();
             Instant expirationTime = issueTime.plus(10, ChronoUnit.DAYS);
             JWTClaimsSet payload = new JWTClaimsSet.Builder()
@@ -31,6 +32,7 @@ public class ProofJWTServiceImpl implements ProofJWTService {
                     .expirationTime(java.util.Date.from(expirationTime))
                     .claim("nonce", nonce)
                     .build();
+            log.info("Payload: {}", payload);
             return Mono.just(objectMapper.readTree(payload.toString()));
         }
         catch (JsonProcessingException e){

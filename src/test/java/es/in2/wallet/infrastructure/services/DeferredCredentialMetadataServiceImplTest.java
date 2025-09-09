@@ -34,7 +34,7 @@ class DeferredCredentialMetadataServiceImplTest {
     void testSaveDeferredCredentialMetadata_Success() {
         // GIVEN
         String processId = "procSave";
-        UUID credentialId = UUID.randomUUID();
+        String credentialId = UUID.randomUUID().toString();
         String transactionId = UUID.randomUUID().toString();
         String accessToken = "some-token";
         String deferredEndpoint = "https://example.com/deferred";
@@ -57,7 +57,7 @@ class DeferredCredentialMetadataServiceImplTest {
                 .thenReturn(Mono.just(savedMetadata));
 
         // WHEN
-        Mono<UUID> result = service.saveDeferredCredentialMetadata(
+        Mono<String> result = service.saveDeferredCredentialMetadata(
                 processId,
                 credentialId,
                 transactionId,
@@ -84,16 +84,15 @@ class DeferredCredentialMetadataServiceImplTest {
         // GIVEN
         String processId = "procGet";
         String credentialIdStr = UUID.randomUUID().toString();
-        UUID credentialId = UUID.fromString(credentialIdStr);
 
         DeferredCredentialMetadata metadata = DeferredCredentialMetadata.builder()
-                .credentialId(credentialId)
+                .credentialId(credentialIdStr)
                 .transactionId(UUID.randomUUID())
                 .accessToken("token")
                 .deferredEndpoint("https://example.com/deferred")
                 .build();
 
-        when(deferredCredentialMetadataRepository.findByCredentialId(credentialId))
+        when(deferredCredentialMetadataRepository.findByCredentialId(credentialIdStr))
                 .thenReturn(Mono.just(metadata));
 
         // WHEN
@@ -105,7 +104,7 @@ class DeferredCredentialMetadataServiceImplTest {
                 .expectNext(metadata)
                 .verifyComplete();
 
-        verify(deferredCredentialMetadataRepository).findByCredentialId(credentialId);
+        verify(deferredCredentialMetadataRepository).findByCredentialId(credentialIdStr);
     }
 
     @Test
@@ -113,9 +112,8 @@ class DeferredCredentialMetadataServiceImplTest {
         // GIVEN
         String processId = "procGetNotFound";
         String credentialIdStr = UUID.randomUUID().toString();
-        UUID credentialId = UUID.fromString(credentialIdStr);
 
-        when(deferredCredentialMetadataRepository.findByCredentialId(credentialId))
+        when(deferredCredentialMetadataRepository.findByCredentialId(credentialIdStr))
                 .thenReturn(Mono.empty());
 
         // WHEN
@@ -128,7 +126,7 @@ class DeferredCredentialMetadataServiceImplTest {
                         && ex.getMessage().contains("No deferred credential metadata found"))
                 .verify();
 
-        verify(deferredCredentialMetadataRepository).findByCredentialId(credentialId);
+        verify(deferredCredentialMetadataRepository).findByCredentialId(credentialIdStr);
     }
 
     @Test
@@ -136,14 +134,13 @@ class DeferredCredentialMetadataServiceImplTest {
         // GIVEN
         String processId = "procDel";
         String credentialIdStr = UUID.randomUUID().toString();
-        UUID credentialId = UUID.fromString(credentialIdStr);
 
         DeferredCredentialMetadata metadata = DeferredCredentialMetadata.builder()
-                .credentialId(credentialId)
+                .credentialId(credentialIdStr)
                 .transactionId(UUID.randomUUID())
                 .build();
 
-        when(deferredCredentialMetadataRepository.findByCredentialId(credentialId))
+        when(deferredCredentialMetadataRepository.findByCredentialId(credentialIdStr))
                 .thenReturn(Mono.just(metadata));
         when(deferredCredentialMetadataRepository.delete(metadata))
                 .thenReturn(Mono.empty());
@@ -155,7 +152,7 @@ class DeferredCredentialMetadataServiceImplTest {
         StepVerifier.create(result)
                 .verifyComplete();
 
-        verify(deferredCredentialMetadataRepository).findByCredentialId(credentialId);
+        verify(deferredCredentialMetadataRepository).findByCredentialId(credentialIdStr);
         verify(deferredCredentialMetadataRepository).delete(metadata);
     }
 
@@ -164,9 +161,8 @@ class DeferredCredentialMetadataServiceImplTest {
         // GIVEN
         String processId = "procDelNotFound";
         String credentialIdStr = UUID.randomUUID().toString();
-        UUID credentialId = UUID.fromString(credentialIdStr);
 
-        when(deferredCredentialMetadataRepository.findByCredentialId(credentialId))
+        when(deferredCredentialMetadataRepository.findByCredentialId(credentialIdStr))
                 .thenReturn(Mono.empty());
 
         // WHEN
@@ -178,7 +174,7 @@ class DeferredCredentialMetadataServiceImplTest {
                         && ex.getMessage().contains("No deferred credential metadata found"))
                 .verify();
 
-        verify(deferredCredentialMetadataRepository).findByCredentialId(credentialId);
+        verify(deferredCredentialMetadataRepository).findByCredentialId(credentialIdStr);
         verify(deferredCredentialMetadataRepository, never()).delete(any());
     }
 
@@ -187,11 +183,10 @@ class DeferredCredentialMetadataServiceImplTest {
         // GIVEN
         String processId = "procUpdate";
         String credentialIdStr = UUID.randomUUID().toString();
-        UUID credentialId = UUID.fromString(credentialIdStr);
         String newTransactionIdStr = UUID.randomUUID().toString();
 
         DeferredCredentialMetadata existing = DeferredCredentialMetadata.builder()
-                .credentialId(credentialId)
+                .credentialId(credentialIdStr)
                 .transactionId(UUID.randomUUID())
                 .build();
 
@@ -201,12 +196,12 @@ class DeferredCredentialMetadataServiceImplTest {
 
         // Manually build the "updated" metadata
         DeferredCredentialMetadata updated = DeferredCredentialMetadata.builder()
-                .credentialId(credentialId)
+                .credentialId(credentialIdStr)
                 .transactionId(UUID.fromString(newTransactionIdStr))
                 .updatedAt(Instant.now())
                 .build();
 
-        when(deferredCredentialMetadataRepository.findByCredentialId(credentialId))
+        when(deferredCredentialMetadataRepository.findByCredentialId(credentialIdStr))
                 .thenReturn(Mono.just(existing));
         when(deferredCredentialMetadataRepository.save(captor.capture()))
                 .thenReturn(Mono.just(updated));
@@ -222,13 +217,13 @@ class DeferredCredentialMetadataServiceImplTest {
         StepVerifier.create(result)
                 .verifyComplete();
 
-        verify(deferredCredentialMetadataRepository).findByCredentialId(credentialId);
+        verify(deferredCredentialMetadataRepository).findByCredentialId(credentialIdStr);
         verify(deferredCredentialMetadataRepository).save(argThat(md ->
                 md.getTransactionId().toString().equals(newTransactionIdStr)
         ));
 
         DeferredCredentialMetadata passedToSave = captor.getValue();
-        assertEquals(credentialId, passedToSave.getCredentialId());
+        assertEquals(credentialIdStr, passedToSave.getCredentialId());
         assertEquals(UUID.fromString(newTransactionIdStr), passedToSave.getTransactionId());
     }
 
@@ -237,10 +232,9 @@ class DeferredCredentialMetadataServiceImplTest {
         // GIVEN
         String processId = "procUpdateNotFound";
         String credentialIdStr = UUID.randomUUID().toString();
-        UUID credentialId = UUID.fromString(credentialIdStr);
         String newTransactionIdStr = UUID.randomUUID().toString();
 
-        when(deferredCredentialMetadataRepository.findByCredentialId(credentialId))
+        when(deferredCredentialMetadataRepository.findByCredentialId(credentialIdStr))
                 .thenReturn(Mono.empty());
 
         // WHEN
@@ -254,7 +248,7 @@ class DeferredCredentialMetadataServiceImplTest {
                         && ex.getMessage().contains("No deferred credential metadata found"))
                 .verify();
 
-        verify(deferredCredentialMetadataRepository).findByCredentialId(credentialId);
+        verify(deferredCredentialMetadataRepository).findByCredentialId(credentialIdStr);
         verify(deferredCredentialMetadataRepository, never()).save(any());
     }
 }

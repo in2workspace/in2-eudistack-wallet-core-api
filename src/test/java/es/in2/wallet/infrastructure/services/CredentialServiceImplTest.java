@@ -6,10 +6,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.wallet.application.dto.CredentialResponse;
-import es.in2.wallet.application.dto.CredentialsBasicInfo;
+import es.in2.wallet.application.dto.CredentialStatus;
+import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.enums.CredentialFormats;
-import es.in2.wallet.domain.enums.CredentialStatus;
+import es.in2.wallet.domain.enums.LifeCycleStatus;
 import es.in2.wallet.domain.exceptions.NoSuchVerifiableCredentialException;
 import es.in2.wallet.domain.repositories.CredentialRepository;
 import es.in2.wallet.domain.services.impl.CredentialServiceImpl;
@@ -47,10 +48,13 @@ class CredentialServiceImplTest {
         String processId = "proc123";
         UUID userId = UUID.randomUUID();
         String credential = "credential";
+        List<CredentialResponse.Credentials> credentialList = List.of(
+                new CredentialResponse.Credentials(credential)
+        );
         String credentialId = "8c7a6213-544d-450d-8e3d-b41fa9009198";
         CredentialResponse response = CredentialResponse.builder()
                 .transactionId("tx123")
-                .credential(credential)
+                .credentials(credentialList)
                 .build();
         String format = "jwt_vc";
 
@@ -68,11 +72,11 @@ class CredentialServiceImplTest {
         when(objectMapper.readTree(credential)).thenReturn(getJsonNodeCredentialLearCredentialEmployee());
 
         // WHEN
-        Mono<UUID> result = credentialRepositoryService.saveCredential(processId, userId, response, format);
+        Mono<String> result = credentialRepositoryService.saveCredential(processId, userId, response, format);
 
         // THEN
         StepVerifier.create(result)
-                .expectNext(UUID.fromString(credentialId))
+                .expectNext(credentialId)
                 .verifyComplete();
 
         // Verify the repository was called exactly once
@@ -81,7 +85,7 @@ class CredentialServiceImplTest {
         // Check the captured entity's fields
         Credential passedToSave = captor.getValue();
         assertEquals(userId, passedToSave.getUserId());
-        assertEquals(CredentialStatus.ISSUED.toString(), passedToSave.getCredentialStatus());
+        assertEquals(LifeCycleStatus.ISSUED.toString(), passedToSave.getCredentialStatus());
         assertNull(passedToSave.getCredentialData());
         // plus any other checks you wish to make
     }
@@ -92,10 +96,13 @@ class CredentialServiceImplTest {
         String processId = "proc123";
         UUID userId = UUID.randomUUID();
         String credential = "someJwtData";
+        List<CredentialResponse.Credentials> credentialList = List.of(
+                new CredentialResponse.Credentials(credential)
+        );
         String format = "jwt_vc";
         // This is the 'CredentialResponse' with format=JWT_VC
         CredentialResponse response = CredentialResponse.builder()
-                .credential(credential)
+                .credentials(credentialList)
                 .build();
 
         String credentialId = "8c7a6213-544d-450d-8e3d-b41fa9009198";
@@ -140,17 +147,17 @@ class CredentialServiceImplTest {
             when(objectMapper.readTree(fakePayloadJson)).thenReturn(rootNode);
 
             // WHEN
-            Mono<UUID> result = credentialRepositoryService.saveCredential(processId, userId, response, format);
+            Mono<String> result = credentialRepositoryService.saveCredential(processId, userId, response, format);
 
             // THEN
             StepVerifier.create(result)
-                    .expectNext(UUID.fromString(credentialId))
+                    .expectNext(credentialId)
                     .verifyComplete();
 
             verify(credentialRepository).save(any(Credential.class));
 
             Credential passedToSave = captor.getValue();
-            assertEquals(CredentialStatus.VALID.toString(), passedToSave.getCredentialStatus());
+            assertEquals(LifeCycleStatus.VALID.toString(), passedToSave.getCredentialStatus());
             assertEquals(userId, passedToSave.getUserId());
             assertEquals(CredentialFormats.JWT_VC.toString(), passedToSave.getCredentialFormat());
             assertEquals(credential, passedToSave.getCredentialData());
@@ -163,12 +170,15 @@ class CredentialServiceImplTest {
         // GIVEN
         String processId = "proc123";
         UUID userId = UUID.randomUUID();
+        List<CredentialResponse.Credentials> credentialList = List.of(
+                new CredentialResponse.Credentials("foo-data")
+        );
         CredentialResponse response = CredentialResponse.builder()
-                .credential("foo-data")
+                .credentials(credentialList)
                 .build();
 
         // WHEN
-        Mono<UUID> result = credentialRepositoryService.saveCredential(processId, userId, response, "FOO_FORMAT");
+        Mono<String> result = credentialRepositoryService.saveCredential(processId, userId, response, "FOO_FORMAT");
 
         // THEN
         StepVerifier.create(result)
@@ -184,35 +194,40 @@ class CredentialServiceImplTest {
         // We test a credential that is currently ISSUED => we can update to VALID
         String processId = "procXYZ";
         UUID userId = UUID.randomUUID();
-        UUID credId = UUID.randomUUID();
+        UUID uuid = UUID.randomUUID();
+        String cred = UUID.randomUUID().toString();
 
         // The existing credential
         Credential existing = Credential.builder()
-                .id(credId)
+                .id(uuid)
+                .credentialId(cred)
                 .userId(userId)
-                .credentialStatus(CredentialStatus.ISSUED.toString())
+                .credentialStatus(LifeCycleStatus.ISSUED.toString())
                 .build();
 
-        when(credentialRepository.findByCredentialId(credId)).thenReturn(Mono.just(existing));
+        when(credentialRepository.findByCredentialId(cred)).thenReturn(Mono.just(existing));
 
         // Suppose once we update the credential, we store it as VALID
         Credential updated = Credential.builder()
-                .id(credId)
+                .id(uuid)
+                .credentialId(cred)
                 .userId(userId)
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .build();
 
         ArgumentCaptor<Credential> captor = ArgumentCaptor.forClass(Credential.class);
         when(credentialRepository.save(captor.capture())).thenReturn(Mono.just(updated));
-
+        List<CredentialResponse.Credentials> credentialList = List.of(
+                new CredentialResponse.Credentials("some-jwt-data")
+        );
         CredentialResponse deferredResponse = CredentialResponse.builder()
-                .credential("some-jwt-data")
+                .credentials(credentialList)
                 .build();
 
         Mono<Void> result = credentialRepositoryService.saveDeferredCredential(
                 processId,
                 userId.toString(),
-                credId.toString(),
+                cred,
                 deferredResponse
         );
 
@@ -222,7 +237,7 @@ class CredentialServiceImplTest {
 
         // Check that the repository saved with status = VALID
         Credential passedToSave = captor.getValue();
-        assertEquals(CredentialStatus.VALID.toString(), passedToSave.getCredentialStatus());
+        assertEquals(LifeCycleStatus.VALID.toString(), passedToSave.getCredentialStatus());
         assertEquals("some-jwt-data", passedToSave.getCredentialData());
     }
 
@@ -230,25 +245,27 @@ class CredentialServiceImplTest {
     void testExtractDidFromCredential_BasicType() throws JsonProcessingException {
         String processId = "procDid";
         UUID userUuid = UUID.randomUUID();
-        UUID credUuid = UUID.randomUUID();
+        UUID uuid = UUID.randomUUID();
+        String cred = UUID.randomUUID().toString();
         String credential = "credential";
 
         // The credential has no LEARCredentialEmployee => DID is at /credentialSubject/id
         Credential existing = Credential.builder()
-                .id(credUuid)
+                .id(uuid)
+                .credentialId(cred)
                 .userId(userUuid)
                 .credentialType(List.of("VerifiableCredential", "AnotherType"))
                 .jsonVc(credential)
                 .build();
 
-        when(credentialRepository.findByCredentialId(credUuid))
+        when(credentialRepository.findByCredentialId(cred))
                 .thenReturn(Mono.just(existing));
 
         when(objectMapper.readTree(credential)).thenReturn(getJsonNodeCredential());
 
         Mono<String> result =
                 credentialRepositoryService.extractDidFromCredential(processId,
-                        credUuid.toString(),
+                        cred,
                         userUuid.toString()
                 );
 
@@ -261,23 +278,25 @@ class CredentialServiceImplTest {
     void testExtractDidFromCredential_LearType() throws JsonProcessingException {
         String processId = "procDid";
         UUID userUuid = UUID.randomUUID();
-        UUID credUuid = UUID.randomUUID();
+        UUID uuid = UUID.randomUUID();
+        String cred = UUID.randomUUID().toString();
         String credential = "credential";
 
         // The credential has type "LEARCredentialEmployee", so DID is at /credentialSubject/mandate/mandatee/id
         Credential existing = Credential.builder()
-                .id(credUuid)
+                .id(uuid)
+                .credentialId(cred)
                 .userId(userUuid)
                 .credentialType(List.of("VerifiableCredential", "LEARCredentialEmployee"))
                 .jsonVc(credential)
                 .build();
 
-        when(credentialRepository.findByCredentialId(credUuid)).thenReturn(Mono.just(existing));
+        when(credentialRepository.findByCredentialId(cred)).thenReturn(Mono.just(existing));
         when(objectMapper.readTree(credential)).thenReturn(getJsonNodeCredentialLearCredentialEmployee());
 
         Mono<String> result =
                 credentialRepositoryService.extractDidFromCredential(processId,
-                        credUuid.toString(),
+                        cred,
                         userUuid.toString()
                 );
 
@@ -290,8 +309,8 @@ class CredentialServiceImplTest {
     void testGetCredentialsByUserId_Success() throws JsonProcessingException {
         String processId = "procABC";
         UUID userUuid = UUID.randomUUID();
-        UUID credentialId1 = UUID.randomUUID();
-        UUID credentialId2 = UUID.randomUUID();
+        String credentialId1 = UUID.randomUUID().toString();
+        String credentialId2 = UUID.randomUUID().toString();
         String credential1 = "credential1";
         String credential2 = "credential2";
 
@@ -301,7 +320,7 @@ class CredentialServiceImplTest {
                 .credentialId(credentialId1)
                 .userId(userUuid)
                 .credentialType(List.of("VerifiableCredential", "LEARCredentialEmployee"))
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .jsonVc(credential1)
                 .build();
         Credential c2 = Credential.builder()
@@ -309,7 +328,7 @@ class CredentialServiceImplTest {
                 .credentialId(credentialId2)
                 .userId(userUuid)
                 .credentialType(List.of("VerifiableCredential", "AnotherType"))
-                .credentialStatus(CredentialStatus.ISSUED.toString())
+                .credentialStatus(LifeCycleStatus.ISSUED.toString())
                 .jsonVc(credential2)
                 .build();
 
@@ -319,32 +338,81 @@ class CredentialServiceImplTest {
         when(credentialRepository.findAllByUserId(userUuid))
                 .thenReturn(Flux.just(c1, c2));
 
-        Mono<List<CredentialsBasicInfo>> result =
+        Mono<List<VerifiableCredential>> result =
                 credentialRepositoryService.getCredentialsByUserId(processId, userUuid.toString());
 
         StepVerifier.create(result)
-                .assertNext(list -> assertEquals(2, list.size()))
+                .assertNext(list -> assertEquals(1, list.size()))
                 .verifyComplete();
     }
+
+    @Test
+    void testGetCredentialsByUserId_NoCredentialsFound_ShouldReturnError() {
+        String processId = "procXYZ";
+        UUID userUuid = UUID.randomUUID();
+
+        when(credentialRepository.findAllByUserId(userUuid))
+                .thenReturn(Flux.empty());
+
+        Mono<List<VerifiableCredential>> result =
+                credentialRepositoryService.getCredentialsByUserId(processId, userUuid.toString());
+
+        StepVerifier.create(result)
+                .expectError(NoSuchVerifiableCredentialException.class)
+                .verify();
+    }
+
+    @Test
+    void testGetCredentialsByUserId_ReadTreeFails_ShouldSkipCredential() throws Exception {
+        String processId = "procXYZ";
+        UUID userUuid = UUID.randomUUID();
+        String credentialId1 = UUID.randomUUID().toString();
+        String badCredentialJson = "invalid-json";
+
+        Credential badCredential = Credential.builder()
+                .id(UUID.randomUUID())
+                .credentialId(credentialId1)
+                .userId(userUuid)
+                .credentialType(List.of("VerifiableCredential"))
+                .credentialStatus(LifeCycleStatus.VALID.toString())
+                .jsonVc(badCredentialJson)
+                .build();
+        when(objectMapper.readTree(badCredentialJson)).thenThrow(new JsonProcessingException("bad json") {});
+
+        when(credentialRepository.findAllByUserId(userUuid))
+                .thenReturn(Flux.just(badCredential));
+
+        Mono<List<VerifiableCredential>> result =
+                credentialRepositoryService.getCredentialsByUserId(processId, userUuid.toString());
+
+        StepVerifier.create(result)
+                .expectError(NoSuchVerifiableCredentialException.class)
+                .verify();
+    }
+
+
+
 
     @Test
     void testGetCredentialDataByIdAndUserId_Success() {
         String processId = "procDEF";
         UUID userUuid = UUID.randomUUID();
-        UUID credUuid = UUID.randomUUID();
+        UUID uuid = UUID.randomUUID();
+        String cred = UUID.randomUUID().toString();
 
         Credential existing = Credential.builder()
-                .id(credUuid)
+                .id(uuid)
+                .credentialId(cred)
                 .userId(userUuid)
                 .credentialData("some-raw-data-here")
                 .build();
 
-        when(credentialRepository.findByCredentialId(credUuid)).thenReturn(Mono.just(existing));
+        when(credentialRepository.findByCredentialId(cred)).thenReturn(Mono.just(existing));
 
         Mono<String> result = credentialRepositoryService.getCredentialDataByIdAndUserId(
                 processId,
                 userUuid.toString(),
-                credUuid.toString()
+                cred
         );
 
         StepVerifier.create(result)
@@ -356,21 +424,23 @@ class CredentialServiceImplTest {
     void testDeleteCredential_Success() {
         String processId = "procDel";
         UUID userUuid = UUID.randomUUID();
-        UUID credUuid = UUID.randomUUID();
+        UUID uuid = UUID.randomUUID();
+        String cred = UUID.randomUUID().toString();
 
         Credential existing = Credential.builder()
-                .id(credUuid)
+                .id(uuid)
+                .credentialId(cred)
                 .userId(userUuid)
                 .build();
 
-        when(credentialRepository.findByCredentialId(credUuid))
+        when(credentialRepository.findByCredentialId(cred))
                 .thenReturn(Mono.just(existing));
         when(credentialRepository.delete(existing))
                 .thenReturn(Mono.empty());
 
         Mono<Void> result = credentialRepositoryService.deleteCredential(
                 processId,
-                credUuid.toString(),
+                cred,
                 userUuid.toString()
         );
 
@@ -387,28 +457,42 @@ class CredentialServiceImplTest {
         String requiredType = "LEARCredentialEmployee";
         String format = "JWT_VC";
 
-        UUID credentialId = UUID.randomUUID();
+        String credentialId = UUID.randomUUID().toString();
         String jsonVc = """
-        {
-          "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
-          "type": ["VerifiableCredential", "LEARCredentialEmployee"],
-          "credentialSubject": {
-            "mandate": {
-              "mandatee": {
-                "id": "did:example:987"
+            {
+              "@context": ["https://www.w3.org/2018/credentials/v1", "https://example.com/context/extra"],
+              "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
+              "type": ["VerifiableCredential", "LEARCredentialEmployee"],
+              "issuer": {
+                "id": "did:example:issuer"
+              },
+              "validUntil": "2026-12-31T23:59:59Z",
+              "validFrom": "2023-01-01T00:00:00Z",
+              "credentialSubject": {
+                "name": "Credential Name",
+                "description": "Credential Description",
+                "mandate": {
+                  "mandatee": {
+                    "id": "did:example:987"
+                  }
+                }
+              },
+              "credentialStatus": {
+                "id": "https://example.com/status/1234",
+                "type": "StatusList2021Entry",
+                "statusPurpose": "revocation",
+                "statusListIndex": "ZpKxfjwWSZifwCihxFoUxQ",
+                "statusListCredential": "https://example.com/status/1234"
               }
             }
-          },
-          "validUntil": "2026-12-31T23:59:59Z"
-        }
-        """;
+            """;
 
         Credential credential = Credential.builder()
                 .credentialId(credentialId)
                 .userId(userUuid)
                 .credentialFormat(format)
                 .credentialType(List.of("VerifiableCredential", requiredType))
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .jsonVc(jsonVc)
                 .build();
 
@@ -416,7 +500,7 @@ class CredentialServiceImplTest {
                 .thenReturn(Flux.just(credential));
         when(objectMapper.readTree(jsonVc)).thenReturn(getJsonNodeCredentialLearCredentialEmployee());
 
-        Mono<List<CredentialsBasicInfo>> result = credentialRepositoryService
+        Mono<List<VerifiableCredential>> result = credentialRepositoryService
                 .getCredentialsByUserIdAndType(processId, userId, requiredType);
 
         StepVerifier.create(result)
@@ -429,15 +513,16 @@ class CredentialServiceImplTest {
         // GIVEN
         String processId = "proc123";
         UUID userUuid = UUID.randomUUID();
+        String credentialId = UUID.randomUUID().toString();
         String userId = userUuid.toString();
         String requiredType = "LEARCredentialEmployee";
 
         Credential credential = Credential.builder()
-                .credentialId(UUID.randomUUID())
+                .credentialId(credentialId)
                 .userId(userUuid)
                 .credentialFormat("ldp_vc")
                 .credentialType(List.of("VerifiableCredential", "SomeOtherType"))
-                .credentialStatus(CredentialStatus.VALID.toString())
+                .credentialStatus(LifeCycleStatus.VALID.toString())
                 .jsonVc("{}")
                 .build();
 
@@ -445,7 +530,7 @@ class CredentialServiceImplTest {
                 .thenReturn(Flux.just(credential));
 
         // WHEN
-        Mono<List<CredentialsBasicInfo>> result = credentialRepositoryService
+        Mono<List<VerifiableCredential>> result = credentialRepositoryService
                 .getCredentialsByUserIdAndType(processId, userId, requiredType);
 
         // THEN
@@ -458,25 +543,133 @@ class CredentialServiceImplTest {
                 .verify();
     }
 
+    @Test
+    void testGetAllCredentials_shouldReturnList_whenCredentialsExist() {
+        Credential c1 = Credential.builder().credentialId("cred-1").build();
+        Credential c2 = Credential.builder().credentialId("cred-2").build();
+
+        when(credentialRepository.findAll()).thenReturn(Flux.just(c1, c2));
+
+        StepVerifier.create(credentialRepositoryService.getAllCredentials())
+                .expectNextMatches(list -> list.size() == 2 && list.get(0).getCredentialId().equals("cred-1"))
+                .verifyComplete();
+    }
+
+    @Test
+    void testGetAllCredentials_shouldThrowException_whenNoCredentialsExist() {
+        when(credentialRepository.findAll()).thenReturn(Flux.empty());
+
+        StepVerifier.create(credentialRepositoryService.getAllCredentials())
+                .expectErrorMatches(err ->
+                        err instanceof NoSuchVerifiableCredentialException &&
+                                err.getMessage().equals("No credentials found"))
+                .verify();
+    }
+
+    @Test
+    void testGetAllCredentialsByUser_shouldReturnList_whenCredentialsExist() {
+        Credential c1 = Credential.builder().credentialId("cred-1").build();
+        Credential c2 = Credential.builder().credentialId("cred-2").build();
+        UUID testUserId = UUID.randomUUID();
+
+        when(credentialRepository.findAllByUserId(testUserId)).thenReturn(Flux.just(c1, c2));
+
+        StepVerifier.create(credentialRepositoryService.getAllCredentialsByUser(testUserId.toString()))
+                .expectNextMatches(list -> list.size() == 2 && list.get(0).getCredentialId().equals("cred-1"))
+                .verifyComplete();
+    }
+
+    @Test
+    void testGetAllCredentialsByUser_shouldThrowException_whenNoCredentialsExist() {
+        UUID testUserId = UUID.randomUUID();
+        when(credentialRepository.findAllByUserId(testUserId)).thenReturn(Flux.empty());
+
+        StepVerifier.create(credentialRepositoryService.getAllCredentialsByUser(testUserId.toString()))
+                .expectErrorMatches(err ->
+                        err instanceof NoSuchVerifiableCredentialException &&
+                                err.getMessage().equals("No credentials found"))
+                .verify();
+    }
+
+    @Test
+    void testGetCredentialStatus_shouldReturnStatus_whenFieldExists() throws Exception {
+        String json = """
+        {
+            "credentialStatus": {
+                "id": "https://example.com/status/1234",
+                "type": "StatusList2021Entry",
+                "statusPurpose": "revocation",
+                "statusListIndex": "ZpKxfjwWSZifwCihxFoUxQ",
+                "statusListCredential": "https://example.com/status/1234"
+             }
+        }
+        """;
+        Credential credential = Credential.builder().jsonVc(json).build();
+
+        when(objectMapper.readTree(json)).thenReturn(new ObjectMapper().readTree(json));
+
+        CredentialStatus status = credentialRepositoryService.getCredentialStatus(credential);
+        assertEquals("https://example.com/status/1234", status.statusListCredential());
+        assertEquals("ZpKxfjwWSZifwCihxFoUxQ", status.statusListIndex());
+    }
+
+    @Test
+    void testGetCredentialStatus_shouldReturnNull_whenNoCredentialStatusField() throws Exception {
+        String json = """
+        {
+            "otherField": 123
+        }
+        """;
+        Credential credential = Credential.builder().jsonVc(json).build();
+
+        when(objectMapper.readTree(json)).thenReturn(new ObjectMapper().readTree(json));
+
+        CredentialStatus status = credentialRepositoryService.getCredentialStatus(credential);
+        assertNull(status);
+    }
+
+    @Test
+    void testGetCredentialJsonVc_shouldReturnParsedJson() throws Exception {
+        String json = """
+        {
+            "id": "credential-123",
+            "type": ["VerifiableCredential"]
+        }
+        """;
+        Credential credential = Credential.builder().jsonVc(json).build();
+
+        JsonNode expected = new ObjectMapper().readTree(json);
+        when(objectMapper.readTree(json)).thenReturn(expected);
+
+        JsonNode result = credentialRepositoryService.getCredentialJsonVc(credential);
+        assertEquals("credential-123", result.get("id").asText());
+    }
+
+
+
+
     private JsonNode getJsonNodeCredentialLearCredentialEmployee() throws JsonProcessingException {
         String json = """
-                {
-                    "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
-                    "type": [
-                        "VerifiableCredential",
-                        "LEARCredentialEmployee"
-                    ],
-                    "credentialSubject" : {
-                        "mandate" : {
-                            "mandatee": {
-                                "id": "did:example:987"
-                                }
-                            }
-                        }
-                     },
-                     "validUntil": "2026-12-31T23:59:59Z"
+            {
+              "@context": ["https://www.w3.org/2018/credentials/v1", "https://example.com/context/extra"],
+              "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
+              "type": ["VerifiableCredential", "LEARCredentialEmployee"],
+              "issuer": {
+                "id": "did:example:issuer"
+              },
+              "validUntil": "2026-12-31T23:59:59Z",
+              "validFrom": "2023-01-01T00:00:00Z",
+              "credentialSubject": {
+                "name": "Credential Name",
+                "description": "Credential Description",
+                "mandate": {
+                  "mandatee": {
+                    "id": "did:example:987"
+                  }
                 }
-                """;
+              }
+            }
+            """;
         ObjectMapper objectMapper2 = new ObjectMapper();
         return objectMapper2.readTree(json);
     }

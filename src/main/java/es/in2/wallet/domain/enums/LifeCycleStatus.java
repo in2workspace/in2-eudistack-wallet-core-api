@@ -1,6 +1,6 @@
 package es.in2.wallet.domain.enums;
 
-public enum CredentialStatus {
+public enum LifeCycleStatus {
     VALID,
     ISSUED,
     REVOKED,
