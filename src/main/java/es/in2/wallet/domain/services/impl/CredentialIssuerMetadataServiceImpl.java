@@ -51,6 +51,7 @@ public class CredentialIssuerMetadataServiceImpl implements CredentialIssuerMeta
                     }
                     else {
                         log.info("Credential issuer metadata: {}", response);
+                        log.info("test");
                         return response.bodyToMono(String.class);
                     }
                 });
