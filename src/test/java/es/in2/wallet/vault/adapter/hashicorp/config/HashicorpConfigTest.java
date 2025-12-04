@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Base64;
 
-import static es.in2.wallet.domain.utils.ApplicationConstants.VAULT_HASHICORP_PATH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
@@ -33,7 +32,7 @@ class HashicorpConfigTest {
 
     @Test
     void getSecretPath_shouldReturnValueFromGenericAdapter() {
-        when(genericConfigAdapter.getConfiguration(VAULT_HASHICORP_PATH)).thenReturn("secret/path");
+        when(genericConfigAdapter.getConfiguration("")).thenReturn("secret/path");
 
         String result = hashicorpConfig.getSecretPath();
 

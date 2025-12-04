@@ -24,7 +24,7 @@ class HashicorpPropertiesTest {
 
     @Test
     void shouldPassValidationWithValidValues() {
-        HashicorpProperties properties = new HashicorpProperties("https://vault.example.com", "my-secret-token");
+        HashicorpProperties properties = new HashicorpProperties("https://vault.example.com", "my-secret-token", "");
 
         Set<ConstraintViolation<HashicorpProperties>> violations = validator.validate(properties);
 
@@ -33,7 +33,7 @@ class HashicorpPropertiesTest {
 
     @Test
     void shouldFailValidationWhenUrlIsInvalid() {
-        HashicorpProperties properties = new HashicorpProperties("not-a-valid-url", "my-secret-token");
+        HashicorpProperties properties = new HashicorpProperties("not-a-valid-url", "my-secret-token", "");
 
         Set<ConstraintViolation<HashicorpProperties>> violations = validator.validate(properties);
 
@@ -43,7 +43,7 @@ class HashicorpPropertiesTest {
 
     @Test
     void shouldFailValidationWhenUrlIsNull() {
-        HashicorpProperties properties = new HashicorpProperties(null, "my-secret-token");
+        HashicorpProperties properties = new HashicorpProperties(null, "my-secret-token", "");
 
         Set<ConstraintViolation<HashicorpProperties>> violations = validator.validate(properties);
 
@@ -53,7 +53,7 @@ class HashicorpPropertiesTest {
 
     @Test
     void shouldFailValidationWhenTokenIsNull() {
-        HashicorpProperties properties = new HashicorpProperties("https://vault.example.com", null);
+        HashicorpProperties properties = new HashicorpProperties("https://vault.example.com", null, "");
 
         Set<ConstraintViolation<HashicorpProperties>> violations = validator.validate(properties);
 
