@@ -158,7 +158,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                         format
                 ))
                 .doOnNext(credentialId ->
-                        log.info("ProcessID: {} - Saved credentialId: {}", processId, credentialId)
+                        log.info("ProapplicessID: {} - Saved credentialId: {}", processId, credentialId)
                 )
                 // If status is ACCEPTED, save deferred metadata; otherwise, skip
                 .flatMap(credentialId -> {

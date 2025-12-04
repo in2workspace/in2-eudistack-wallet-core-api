@@ -96,6 +96,7 @@ security:
     hashicorp:
       url:
       token:
+      secretsMount:
 
 # These properties are used to pass the EBSI Holder Wallet Test
 ebsi:
