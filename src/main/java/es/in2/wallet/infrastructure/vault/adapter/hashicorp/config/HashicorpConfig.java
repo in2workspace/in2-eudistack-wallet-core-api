@@ -18,7 +18,8 @@ public class HashicorpConfig {
     }
 
     public String getSecretPath() {
-        return genericConfigAdapter.getConfiguration("/" + hashicorpProperties.secretsMount());
+        String secretsPath = "/" + hashicorpProperties.secretsMount();
+        return genericConfigAdapter.getConfiguration(secretsPath);
     }
 
     public String getVaultUrl() {
