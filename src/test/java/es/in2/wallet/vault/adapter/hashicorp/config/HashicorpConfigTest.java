@@ -30,15 +30,19 @@ class HashicorpConfigTest {
         hashicorpConfig = new HashicorpConfig(configAdapterFactory, hashicorpProperties);
     }
 
-    // todo
-//    @Test
-//    void getSecretPath_shouldReturnValueFromGenericAdapter() {
-//        when(genericConfigAdapter.getConfiguration("")).thenReturn("secret/path");
-//
-//        String result = hashicorpConfig.getSecretPath();
-//
-//        assertEquals("secret/path", result);
-//    }
+    @Test
+    void getSecretPath_shouldReturnValueFromGenericAdapter() {
+        // given
+        when(hashicorpProperties.secretsMount()).thenReturn("secret/mount");
+        when(genericConfigAdapter.getConfiguration("/secret/mount"))
+                .thenReturn("secret/path");
+
+        // when
+        String result = hashicorpConfig.getSecretPath();
+
+        // then
+        assertEquals("secret/path", result);
+    }
 
     @Test
     void getVaultUrl_shouldReturnValueFromGenericAdapter() {
