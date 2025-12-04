@@ -25,6 +25,9 @@ public class HashicorpAdapter implements GenericVaultService {
     public HashicorpAdapter(ReactiveVaultOperations vaultOperations, HashicorpConfig hashicorpConfig) {
         this.vaultOperations = vaultOperations;
         this.hashicorpSecretPath = hashicorpConfig.getSecretPath();
+        //todo remove
+        log.info("hashicorpSecretPath");
+        log.info(this.hashicorpSecretPath);
     }
 
     @Override
