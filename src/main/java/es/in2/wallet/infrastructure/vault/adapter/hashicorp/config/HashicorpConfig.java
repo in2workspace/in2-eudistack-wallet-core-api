@@ -5,6 +5,7 @@ import es.in2.wallet.infrastructure.appconfiguration.util.ConfigAdapterFactory;
 import es.in2.wallet.infrastructure.vault.adapter.hashicorp.config.properties.HashicorpProperties;
 import org.springframework.stereotype.Component;
 
+import java.nio.file.Path;
 import java.util.Base64;
 
 @Component
@@ -18,7 +19,7 @@ public class HashicorpConfig {
     }
 
     public String getSecretPath() {
-        String secretsPath = "/" + hashicorpProperties.secretsMount();
+        String secretsPath = Path.of(hashicorpProperties.secretsMount()).toString();
         return genericConfigAdapter.getConfiguration(secretsPath);
     }
 
