@@ -9,5 +9,6 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("security.vault.hashicorp")
 public record HashicorpProperties(
         @URL String url,
-        @NotNull String token) {
+        @NotNull String token,
+        @NotNull String secretsMount) {
 }

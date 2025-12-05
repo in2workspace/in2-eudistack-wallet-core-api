@@ -7,9 +7,9 @@ import es.in2.wallet.infrastructure.vault.adapter.hashicorp.config.properties.Ha
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Path;
 import java.util.Base64;
 
-import static es.in2.wallet.domain.utils.ApplicationConstants.VAULT_HASHICORP_PATH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
@@ -33,10 +33,16 @@ class HashicorpConfigTest {
 
     @Test
     void getSecretPath_shouldReturnValueFromGenericAdapter() {
-        when(genericConfigAdapter.getConfiguration(VAULT_HASHICORP_PATH)).thenReturn("secret/path");
+        // given
+        when(hashicorpProperties.secretsMount()).thenReturn("secret/mount");
+        String expectedPath = Path.of("secret/mount").toString();
+        when(genericConfigAdapter.getConfiguration(expectedPath))
+                .thenReturn("secret/path");
 
+        // when
         String result = hashicorpConfig.getSecretPath();
 
+        // then
         assertEquals("secret/path", result);
     }
 
