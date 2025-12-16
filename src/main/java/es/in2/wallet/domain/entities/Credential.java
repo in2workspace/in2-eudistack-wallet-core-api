@@ -13,7 +13,7 @@ import java.util.UUID;
 @Setter
 @Builder
 @EqualsAndHashCode(of = "id")
-@Table("wallet.credential")
+@Table(name ="credential", schema = "identity_wallet")
 public class Credential {
     @Id
     @Column("id")

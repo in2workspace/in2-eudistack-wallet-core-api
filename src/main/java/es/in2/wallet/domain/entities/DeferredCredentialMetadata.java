@@ -12,7 +12,7 @@ import java.util.UUID;
 @Setter
 @Builder
 @EqualsAndHashCode(of = "id")
-@Table("wallet.deferred_credential_metadata")
+@Table(name="deferred_credential_metadata", schema = "identity_wallet")
 public class DeferredCredentialMetadata {
     @Id
     @Column("id")

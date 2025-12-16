@@ -11,7 +11,7 @@ import java.util.UUID;
 @Getter
 @Builder
 @EqualsAndHashCode(of = "id")
-@Table("wallet.user")
+@Table(name="user", schema = "identity_wallet")
 public class User {
     @Id
     @Column("id")
