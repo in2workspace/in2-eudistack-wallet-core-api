@@ -191,6 +191,8 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
                             );
                         } else {
                             log.info("Credential response retrieved: {}", response);
+                            log.info("Credential response status: {}", response.statusCode());
+                            log.info("Credential response string: {}", response.toString());
                             // Parse the body to a CredentialResponse, then wrap it in CredentialResponseWithStatus
                             return response.bodyToMono(String.class)
                                     .handle((responseBody, sink) -> {
