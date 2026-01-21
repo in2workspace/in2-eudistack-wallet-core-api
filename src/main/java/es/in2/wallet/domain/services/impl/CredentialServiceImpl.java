@@ -369,10 +369,17 @@ public class CredentialServiceImpl implements CredentialService {
                             .anyMatch("LEARCredentialEmployee"::equals) || credential.getCredentialType().stream()
                             .anyMatch("LEARCredentialMachine"::equals);
 
-                    // Extract DID from the correct path
-                    JsonNode didNode = isLear
-                            ? vcNode.at("/credentialSubject/mandate/mandatee/id")
-                            : vcNode.at("/credentialSubject/id");
+                    JsonNode didNode;
+                    if (isLear) {
+                        JsonNode legacy = vcNode.at("/credentialSubject/mandate/mandatee/id");
+                        if (legacy != null && legacy.isTextual() && !legacy.asText().isBlank()) {
+                            didNode = legacy;
+                        }else{
+                            didNode = vcNode.at("/credentialSubject/id");
+                        }
+                    }else{
+                        didNode = vcNode.at("/credentialSubject/id");
+                    }
 
                     if (didNode.isMissingNode() || didNode.asText().isBlank()) {
                         return Mono.error(new NoSuchVerifiableCredentialException("DID not found in credential"));
