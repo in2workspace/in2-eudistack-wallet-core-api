@@ -36,6 +36,8 @@ class OID4VCICredentialServiceImplTest {
     @InjectMocks
     private OID4VCICredentialServiceImpl credentialService;
 
+    private final Long tokenObtainedAt = 1719848000L;
+
     @Test
     void getCredentialTest() throws JsonProcessingException {
         // GIVEN
@@ -51,8 +53,8 @@ class OID4VCICredentialServiceImplTest {
 
         // The service returns CredentialResponseWithStatus
         // We'll embed a CredentialResponse inside
-        List<CredentialResponse.Credentials> credentialList = List.of(
-                new CredentialResponse.Credentials("credential")
+        List<CredentialResponse.Credential> credentialList = List.of(
+                new CredentialResponse.Credential("credential")
         );
         CredentialResponse mockCredentialResponse = CredentialResponse.builder()
                 .credentials(credentialList)
@@ -86,7 +88,7 @@ class OID4VCICredentialServiceImplTest {
 
         // WHEN
         Mono<CredentialResponseWithStatus> result = credentialService.getCredential(
-                jwt, tokenResponse, credentialIssuerMetadata, JWT_VC_JSON, "VerifiableCredential"
+                jwt, tokenResponse, tokenObtainedAt, "", credentialIssuerMetadata, JWT_VC_JSON, "VerifiableCredential"
         );
 
         // THEN
@@ -126,7 +128,7 @@ class OID4VCICredentialServiceImplTest {
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
         when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
 
-        StepVerifier.create(credentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, JWT_VC_JSON, "VerifiableCredential"))
+        StepVerifier.create(credentialService.getCredential(jwt, tokenResponse, tokenObtainedAt, "", credentialIssuerMetadata, JWT_VC_JSON, "VerifiableCredential"))
                 .expectError(RuntimeException.class)
                 .verify();
     }
@@ -143,8 +145,8 @@ class OID4VCICredentialServiceImplTest {
                 .credentialEndpoint("endpoint")
                 .build();
 
-        List<CredentialResponse.Credentials> credentialList = List.of(
-                new CredentialResponse.Credentials("credential")
+        List<CredentialResponse.Credential> credentialList = List.of(
+                new CredentialResponse.Credential("credential")
         );
 
         CredentialResponse mockCredentialResponse = CredentialResponse.builder()
@@ -173,7 +175,7 @@ class OID4VCICredentialServiceImplTest {
         // The code returns Mono<CredentialResponseWithStatus>
         // We'll check it has our embedded CredentialResponse
         StepVerifier.create(
-                        credentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, JWT_VC_JSON, "VerifiableCredential")
+                        credentialService.getCredential(jwt, tokenResponse, tokenObtainedAt, "", credentialIssuerMetadata, JWT_VC_JSON, "VerifiableCredential")
                 )
                 .expectNextMatches(actual ->
                         actual.credentialResponse().equals(mockCredentialResponse)
@@ -194,8 +196,8 @@ class OID4VCICredentialServiceImplTest {
                 .credentialEndpoint("endpoint")
                 .build();
 
-        List<CredentialResponse.Credentials> credentialList = List.of(
-                new CredentialResponse.Credentials("credential")
+        List<CredentialResponse.Credential> credentialList = List.of(
+                new CredentialResponse.Credential("credential")
         );
 
         CredentialResponse mockCredentialResponse = CredentialResponse.builder()
@@ -222,7 +224,7 @@ class OID4VCICredentialServiceImplTest {
                 .thenReturn(webClient);
 
         StepVerifier.create(
-                        credentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, JWT_VC_JSON, "LEARCredential")
+                        credentialService.getCredential(jwt, tokenResponse, tokenObtainedAt, "", credentialIssuerMetadata, JWT_VC_JSON, "LEARCredential")
                 )
                 .expectNextMatches(actual ->
                         actual.credentialResponse().equals(mockCredentialResponse)
@@ -243,8 +245,8 @@ class OID4VCICredentialServiceImplTest {
                 .credentialEndpoint("endpoint")
                 .build();
 
-        List<CredentialResponse.Credentials> credentialList = List.of(
-                new CredentialResponse.Credentials("credential")
+        List<CredentialResponse.Credential> credentialList = List.of(
+                new CredentialResponse.Credential("credential")
         );
 
         CredentialResponse mockCredentialResponse = CredentialResponse.builder()
@@ -276,7 +278,7 @@ class OID4VCICredentialServiceImplTest {
                 .thenReturn(webClient);
 
         StepVerifier.create(
-                        credentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, JWT_VC_JSON, "LEARCredential")
+                        credentialService.getCredential(jwt, tokenResponse, tokenObtainedAt, "", credentialIssuerMetadata, JWT_VC_JSON, "LEARCredential")
                 )
                 .expectNextMatches(actual ->
                         actual.credentialResponse().equals(mockCredentialResponse)
@@ -311,7 +313,7 @@ class OID4VCICredentialServiceImplTest {
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
         when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
 
-        StepVerifier.create(credentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, JWT_VC_JSON, "LEARCredential"))
+        StepVerifier.create(credentialService.getCredential(jwt, tokenResponse, tokenObtainedAt, "", credentialIssuerMetadata, JWT_VC_JSON, "LEARCredential"))
                 .expectError(RuntimeException.class)
                 .verify();
     }
@@ -349,7 +351,7 @@ class OID4VCICredentialServiceImplTest {
                 .thenReturn(webClient);
 
         StepVerifier.create(
-                        credentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, JWT_VC_JSON, "LEARCredential")
+                        credentialService.getCredential(jwt, tokenResponse, tokenObtainedAt, "", credentialIssuerMetadata, JWT_VC_JSON, "LEARCredential")
                 )
                 .expectError(FailedDeserializingException.class)
                 .verify();
@@ -372,7 +374,7 @@ class OID4VCICredentialServiceImplTest {
                 });
 
         StepVerifier.create(
-                        credentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, JWT_VC_JSON, "LEARCredential")
+                        credentialService.getCredential(jwt, tokenResponse, tokenObtainedAt, "", credentialIssuerMetadata, JWT_VC_JSON, "LEARCredential")
                 )
                 .expectError(FailedSerializingException.class)
                 .verify();
@@ -381,23 +383,27 @@ class OID4VCICredentialServiceImplTest {
     @Test
     void handleDeferredCredential_successfulResponse() throws Exception {
         String transactionId = "trans123";
+        Long interval = 1L;
         String endpoint = "https://issuer.org/deferred";
 
         CredentialIssuerMetadata metadata = CredentialIssuerMetadata.builder()
                 .deferredCredentialEndpoint(endpoint)
                 .build();
 
-        List<CredentialResponse.Credentials> credentialList = List.of(
-                new CredentialResponse.Credentials("mock-credential")
+        List<CredentialResponse.Credential> credentialList = List.of(
+                new CredentialResponse.Credential("mock-credential")
         );
-        CredentialResponse mockResponse = CredentialResponse.builder()
-                .credentials(credentialList)
-                .transactionId(transactionId)
+        CredentialResponseWithStatus mockResponse = CredentialResponseWithStatus.builder()
+                .credentialResponse(
+                        CredentialResponse.builder()
+                                .credentials(credentialList)
+                                .transactionId(transactionId)
+                                .build())
                 .build();
 
         String responseJson = "response-body";
 
-        when(objectMapper.readValue(responseJson, CredentialResponse.class))
+        when(objectMapper.readValue(responseJson, CredentialResponseWithStatus.class))
                 .thenReturn(mockResponse);
 
         ClientResponse clientResponse = ClientResponse.create(HttpStatus.OK)
@@ -413,10 +419,16 @@ class OID4VCICredentialServiceImplTest {
                 .build();
         when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
 
-        StepVerifier.create(credentialService.handleDeferredCredential(transactionId, metadata))
+        TokenInfo tokenInfo = TokenInfo.builder()
+                .refreshToken("1234")
+                .tokenObtainedAt(4072605312L)
+                .build();
+
+
+        StepVerifier.create(credentialService.handleDeferredCredential(tokenInfo, "", transactionId, interval, metadata))
                 .expectNextMatches(response ->
-                        response.transactionId().equals(transactionId)
-                                && response.credentials().get(0).credential().equals("mock-credential")
+                        response.credentialResponse().transactionId().equals(transactionId)
+                                && response.credentialResponse().credentials().get(0).credential().equals("mock-credential")
                 )
                 .verifyComplete();
     }
@@ -424,20 +436,23 @@ class OID4VCICredentialServiceImplTest {
     @Test
     void handleDeferredCredential_missingCredentialAndNoNewTransactionId_shouldReturnError() throws Exception {
         String transactionId = "trans123";
+        Long interval = 1L;
         String endpoint = "https://issuer.org/deferred";
 
         CredentialIssuerMetadata metadata = CredentialIssuerMetadata.builder()
                 .deferredCredentialEndpoint(endpoint)
                 .build();
 
-        CredentialResponse incompleteResponse = CredentialResponse.builder()
-                .transactionId(transactionId)
-                .credentials(List.of(new CredentialResponse.Credentials(null)))
+        CredentialResponseWithStatus incompleteResponse = CredentialResponseWithStatus.builder()
+                .credentialResponse(CredentialResponse.builder()
+                        .transactionId(transactionId)
+                        .credentials(List.of(new CredentialResponse.Credential(null)))
+                        .build())
                 .build();
 
         String responseJson = "incomplete-response";
 
-        when(objectMapper.readValue(responseJson, CredentialResponse.class))
+        when(objectMapper.readValue(responseJson, CredentialResponseWithStatus.class))
                 .thenReturn(incompleteResponse);
 
         ClientResponse clientResponse = ClientResponse.create(HttpStatus.OK)
@@ -454,7 +469,12 @@ class OID4VCICredentialServiceImplTest {
 
         when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
 
-        StepVerifier.create(credentialService.handleDeferredCredential(transactionId, metadata))
+        TokenInfo tokenInfo = TokenInfo.builder()
+                .refreshToken("1234")
+                .tokenObtainedAt(4072605312L)
+                .build();
+
+        StepVerifier.create(credentialService.handleDeferredCredential(tokenInfo, "", transactionId, interval, metadata))
                 .expectErrorMatches(error ->
                         error instanceof IllegalStateException &&
                                 error.getMessage().contains("No credential or new transaction id received in deferred flow")
@@ -465,6 +485,7 @@ class OID4VCICredentialServiceImplTest {
     @Test
     void handleDeferredCredential_deserializationFails_shouldReturnFailedDeserializingException() throws Exception {
         String transactionId = "trans123";
+        Long interval = 1L;
         String endpoint = "https://issuer.org/deferred";
 
         CredentialIssuerMetadata metadata = CredentialIssuerMetadata.builder()
@@ -474,7 +495,8 @@ class OID4VCICredentialServiceImplTest {
         String badJson = "bad-json-response";
 
         when(objectMapper.readValue(badJson, CredentialResponse.class))
-                .thenThrow(new JsonProcessingException("Invalid JSON") {});
+                .thenThrow(new JsonProcessingException("Invalid JSON") {
+                });
 
         ClientResponse clientResponse = ClientResponse.create(HttpStatus.OK)
                 .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
@@ -490,7 +512,11 @@ class OID4VCICredentialServiceImplTest {
 
         when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
 
-        StepVerifier.create(credentialService.handleDeferredCredential(transactionId, metadata))
+        TokenInfo tokenInfo = TokenInfo.builder()
+                .refreshToken("1234")
+                .tokenObtainedAt(4072605312L).build();
+
+        StepVerifier.create(credentialService.handleDeferredCredential(tokenInfo, "", transactionId, interval, metadata))
                 .expectErrorMatches(error ->
                         error instanceof FailedDeserializingException &&
                                 error.getMessage().contains("Error processing deferred CredentialResponse")
@@ -502,27 +528,39 @@ class OID4VCICredentialServiceImplTest {
     void handleDeferredCredential_recursiveCallOnNewTransactionId() throws Exception {
         String originalTransactionId = "trans123";
         String newTransactionId = "trans456";
+        Long interval = 1L;
         String endpoint = "https://issuer.org/deferred";
 
         CredentialIssuerMetadata metadata = CredentialIssuerMetadata.builder()
                 .deferredCredentialEndpoint(endpoint)
                 .build();
 
-        CredentialResponse firstResponse = CredentialResponse.builder()
-                .transactionId(newTransactionId)
-                .credentials(List.of(new CredentialResponse.Credentials(null)))
+        CredentialResponseWithStatus firstResponse = CredentialResponseWithStatus.builder()
+                .credentialResponse(
+                        CredentialResponse.builder()
+                                .transactionId(newTransactionId)
+                                .interval(interval)
+                                .build()
+                )
                 .build();
 
-        CredentialResponse secondResponse = CredentialResponse.builder()
-                .transactionId(newTransactionId)
-                .credentials(List.of(new CredentialResponse.Credentials("final-credential")))
+        String credential = "credential";
+        CredentialResponseWithStatus secondResponse = CredentialResponseWithStatus.builder()
+                .credentialResponse(
+                        CredentialResponse.builder()
+                                .credentials(List.of(
+                                        CredentialResponse.Credential.builder()
+                                                .credential(credential)
+                                                .build()))
+                                .build()
+                )
                 .build();
 
         String firstJson = "first-response";
         String secondJson = "second-response";
 
-        when(objectMapper.readValue(firstJson, CredentialResponse.class)).thenReturn(firstResponse);
-        when(objectMapper.readValue(secondJson, CredentialResponse.class)).thenReturn(secondResponse);
+        when(objectMapper.readValue(firstJson, CredentialResponseWithStatus.class)).thenReturn(firstResponse);
+        when(objectMapper.readValue(secondJson, CredentialResponseWithStatus.class)).thenReturn(secondResponse);
 
         ClientResponse firstClientResponse = ClientResponse.create(HttpStatus.OK)
                 .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
@@ -545,15 +583,17 @@ class OID4VCICredentialServiceImplTest {
 
         when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
 
-        StepVerifier.create(credentialService.handleDeferredCredential(originalTransactionId, metadata))
+        TokenInfo tokenInfo = TokenInfo.builder()
+                .refreshToken("1234")
+                .tokenObtainedAt(4072605312L)
+                .build();
+
+        StepVerifier.create(credentialService.handleDeferredCredential(tokenInfo, "", originalTransactionId, interval, metadata))
                 .expectNextMatches(response ->
-                        response.transactionId().equals(newTransactionId) &&
-                                response.credentials().get(0).credential().equals("final-credential")
+                        response.credentialResponse().credentials().get(0).credential().equals(credential)
                 )
                 .verifyComplete();
     }
-
-
 
 
     @Test
@@ -562,8 +602,8 @@ class OID4VCICredentialServiceImplTest {
         String accessToken = "access-token";
         String deferredEndpoint = "/deferred/endpoint";
 
-        List<CredentialResponse.Credentials> credentialList = List.of(
-                new CredentialResponse.Credentials("credentialData")
+        List<CredentialResponse.Credential> credentialList = List.of(
+                new CredentialResponse.Credential("credentialData")
         );
 
         // We now expect to return a CredentialResponseWithStatus
@@ -649,7 +689,7 @@ class OID4VCICredentialServiceImplTest {
         String unsupportedFormat = "ldp_vc";
 
         StepVerifier.create(
-                        credentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, unsupportedFormat, "SomeCredentialId")
+                        credentialService.getCredential(jwt, tokenResponse, tokenObtainedAt, "", credentialIssuerMetadata, unsupportedFormat, "SomeCredentialId")
                 )
                 .expectErrorMatches(error ->
                         error instanceof IllegalArgumentException &&
@@ -668,7 +708,7 @@ class OID4VCICredentialServiceImplTest {
                 .build();
 
         StepVerifier.create(
-                        credentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, JWT_VC_JSON, null)
+                        credentialService.getCredential(jwt, tokenResponse, tokenObtainedAt, "", credentialIssuerMetadata, JWT_VC_JSON, null)
                 )
                 .expectErrorMatches(error ->
                         error instanceof IllegalArgumentException &&
@@ -676,10 +716,6 @@ class OID4VCICredentialServiceImplTest {
                 )
                 .verify();
     }
-
-
-
-
 
 
 }

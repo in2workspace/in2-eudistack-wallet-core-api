@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -66,6 +67,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
         return generateDid()
                 .flatMap(did -> getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken)
                         .flatMap(tokenResponse -> {
+                            Long tokenObtainedAt = Instant.now().getEpochSecond();
                             List<String> credentialConfigurationsIds = List.copyOf(credentialOffer.credentialConfigurationsIds());
                             if (credentialConfigurationsIds.isEmpty()) {
                                 return Mono.error(new RuntimeException("No credential configurations IDs found"));
@@ -87,7 +89,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                             return jwtMono.flatMap(jwt ->
                                     retrieveCredentialFormatFromCredentialIssuerMetadataByCredentialConfigurationId(credentialConfigurationId, credentialIssuerMetadata)
                                             .flatMap(format ->
-                                                    oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, format, credentialConfigurationId)
+                                                    oid4vciCredentialService.getCredential(jwt, tokenResponse, tokenObtainedAt, authorisationServerMetadata.tokenEndpoint(), credentialIssuerMetadata, format, credentialConfigurationId)
                                                             .flatMap(credentialResponseWithStatus ->
                                                                     handleCredentialResponse(processId, credentialResponseWithStatus, authorizationToken, tokenResponse, credentialIssuerMetadata, format)
                                                             )

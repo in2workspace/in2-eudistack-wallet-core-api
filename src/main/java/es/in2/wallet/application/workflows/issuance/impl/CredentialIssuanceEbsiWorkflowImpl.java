@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.List;
 
 import static es.in2.wallet.domain.utils.ApplicationUtils.*;
@@ -114,6 +115,7 @@ public class CredentialIssuanceEbsiWorkflowImpl implements CredentialIssuanceEbs
     }
 
     private Mono<Void> getCredential(String processId, String authorizationToken, TokenResponse tokenResponse, CredentialOffer credentialOffer, CredentialIssuerMetadata credentialIssuerMetadata, String did, String nonce) {
+        Long tokenObtainedAt = Instant.now().getEpochSecond();
         String credentialConfigurationId = List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0);
         CredentialIssuerMetadata.CredentialsConfigurationsSupported config =
                 credentialIssuerMetadata.credentialsConfigurationsSupported().get(credentialConfigurationId);
@@ -127,7 +129,7 @@ public class CredentialIssuanceEbsiWorkflowImpl implements CredentialIssuanceEbs
         }
         String format = credentialOffer.credentials().get(0).format();
         return jwtMono
-                .flatMap(jwt -> oid4vciCredentialService.getCredential(jwt,tokenResponse,credentialIssuerMetadata,format,credentialConfigurationId))
+                .flatMap(jwt -> oid4vciCredentialService.getCredential(jwt,tokenResponse,tokenObtainedAt,"", credentialIssuerMetadata,format,credentialConfigurationId))
                 .flatMap(credentialResponse -> handleCredentialResponse(processId, credentialResponse, authorizationToken, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format()));
     }
 
