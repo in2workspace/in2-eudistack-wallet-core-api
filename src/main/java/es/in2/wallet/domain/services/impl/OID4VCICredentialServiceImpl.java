@@ -185,15 +185,15 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
                                 .flatMap(responseBody -> {
                                     try {
                                         log.debug("Deferred flow body: {}", responseBody);
-                                        CredentialResponseWithStatus credentialResponseWithStatus = objectMapper.readValue(responseBody, CredentialResponseWithStatus.class);
+                                        CredentialResponse credentialResponse = objectMapper.readValue(responseBody, CredentialResponse.class);
 
                                         // Recursive call if a new transactionId is received
-                                        if (credentialResponseWithStatus.credentialResponse().transactionId() != null
-                                                && !credentialResponseWithStatus.credentialResponse().transactionId().equals(transactionId)) {
-                                            return handleDeferredCredential(validTokenInfo, tokenEndpoint, credentialResponseWithStatus.credentialResponse().transactionId(), credentialResponseWithStatus.credentialResponse().interval(), credentialIssuerMetadata);
+                                        if (credentialResponse.transactionId() != null
+                                                && !credentialResponse.transactionId().equals(transactionId)) {
+                                            return handleDeferredCredential(validTokenInfo, tokenEndpoint, credentialResponse.transactionId(), credentialResponse.interval(), credentialIssuerMetadata);
                                         }
                                         // If the credential is available, return it
-                                        if (credentialResponseWithStatus.credentialResponse().credentials().get(0).credential() != null) {
+                                        if (credentialResponse.credentials().get(0).credential() != null) {
                                             log.debug("Deferred credential signature completed for: {}", transactionId);
                                             return Mono.empty();
                                         }
