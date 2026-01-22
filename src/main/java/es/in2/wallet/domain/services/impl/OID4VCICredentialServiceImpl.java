@@ -71,22 +71,23 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
                     if (httpStatusCode.equals(HttpStatusCode.valueOf(200))) {
                         return handleCredentialResponse(responseWithStatus1);
                     } else if (httpStatusCode.equals(HttpStatusCode.valueOf(202))) {
-                        return handleDeferredCredential(
-                                TokenInfo.builder()
-                                        .accessToken(tokenResponse.accessToken())
-                                        .refreshToken(tokenResponse.refreshToken())
-                                        .tokenObtainedAt(tokenObtainedAt)
-                                        .expiresIn(tokenResponse.expiresIn())
-                                        .build(),
-                                tokenEndpoint,
-                                responseWithStatus1.credentialResponse().transactionId(),
-                                responseWithStatus1.credentialResponse().interval(),
-                                credentialIssuerMetadata)
-                                .subscribeOn(Schedulers.boundedElastic())
-                                .doOnSuccess(r ->
-                                        log.info("ProcessID: {} - Background deferred credential completed", processId))
-                                .doOnError(e ->
-                                        log.error("ProcessID: {} - Background deferred credential failed", processId, e))
+                        return Mono.fromRunnable(() ->
+                                        handleDeferredCredential(
+                                                TokenInfo.builder()
+                                                        .accessToken(tokenResponse.accessToken())
+                                                        .refreshToken(tokenResponse.refreshToken())
+                                                        .tokenObtainedAt(tokenObtainedAt)
+                                                        .expiresIn(tokenResponse.expiresIn())
+                                                        .build(),
+                                                tokenEndpoint,
+                                                responseWithStatus1.credentialResponse().transactionId(),
+                                                responseWithStatus1.credentialResponse().interval(),
+                                                credentialIssuerMetadata)
+                                                .subscribeOn(Schedulers.boundedElastic())
+                                                .subscribe(
+                                                        r -> log.info("ProcessID: {} - Background deferred credential completed", processId),
+                                                        e -> log.error("ProcessID: {} - Background deferred credential failed", processId, e)
+                                                ))
                                 .then(Mono.empty());
                     } else {
                         return Mono.error(new IllegalArgumentException("Unexpected HTTP status: " + httpStatusCode));
@@ -308,6 +309,7 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
     }
 
     private Mono<TokenInfo> ensureValidToken(TokenInfo tokenInfo, String tokenUrl) {
+        System.out.println("HOLAAAAAAAA");
         long currentTime = Instant.now().getEpochSecond();
         long expiry = tokenInfo.tokenObtainedAt() + tokenInfo.expiresIn();
         long safetyWindow = 10;
