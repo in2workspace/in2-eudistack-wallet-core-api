@@ -433,96 +433,96 @@ class OID4VCICredentialServiceImplTest {
                 .verifyComplete();
     }*/
 
-    @Test
-    void handleDeferredCredential_missingCredentialAndNoNewTransactionId_shouldReturnError() throws Exception {
-        String transactionId = "trans123";
-        Long interval = 1L;
-        String endpoint = "https://issuer.org/deferred";
+//    @Test
+//    void handleDeferredCredential_missingCredentialAndNoNewTransactionId_shouldReturnError() throws Exception {
+//        String transactionId = "trans123";
+//        Long interval = 1L;
+//        String endpoint = "https://issuer.org/deferred";
+//
+//        CredentialIssuerMetadata metadata = CredentialIssuerMetadata.builder()
+//                .deferredCredentialEndpoint(endpoint)
+//                .build();
+//
+//        CredentialResponseWithStatus incompleteResponse = CredentialResponseWithStatus.builder()
+//                .credentialResponse(CredentialResponse.builder()
+//                        .transactionId(transactionId)
+//                        .credentials(List.of(new CredentialResponse.Credential(null)))
+//                        .build())
+//                .build();
+//
+//        String responseJson = "incomplete-response";
+//
+//        when(objectMapper.readValue(responseJson, CredentialResponseWithStatus.class))
+//                .thenReturn(incompleteResponse);
+//
+//        ClientResponse clientResponse = ClientResponse.create(HttpStatus.OK)
+//                .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
+//                .body(responseJson)
+//                .build();
+//
+//        ExchangeFunction exchangeFunction = mock(ExchangeFunction.class);
+//        when(exchangeFunction.exchange(any())).thenReturn(Mono.just(clientResponse));
+//
+//        WebClient webClient = WebClient.builder()
+//                .exchangeFunction(exchangeFunction)
+//                .build();
+//
+//        when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
+//
+//        TokenInfo tokenInfo = TokenInfo.builder()
+//                .refreshToken("1234")
+//                .tokenObtainedAt(4072605312L)
+//                .build();
+//
+//        StepVerifier.create(credentialService.handleDeferredCredential(tokenInfo, "", transactionId, interval, metadata))
+//                .expectErrorMatches(error ->
+//                        error instanceof IllegalStateException &&
+//                                error.getMessage().contains("No credential or new transaction id received in deferred flow")
+//                )
+//                .verify();
+//    }
 
-        CredentialIssuerMetadata metadata = CredentialIssuerMetadata.builder()
-                .deferredCredentialEndpoint(endpoint)
-                .build();
-
-        CredentialResponseWithStatus incompleteResponse = CredentialResponseWithStatus.builder()
-                .credentialResponse(CredentialResponse.builder()
-                        .transactionId(transactionId)
-                        .credentials(List.of(new CredentialResponse.Credential(null)))
-                        .build())
-                .build();
-
-        String responseJson = "incomplete-response";
-
-        when(objectMapper.readValue(responseJson, CredentialResponseWithStatus.class))
-                .thenReturn(incompleteResponse);
-
-        ClientResponse clientResponse = ClientResponse.create(HttpStatus.OK)
-                .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
-                .body(responseJson)
-                .build();
-
-        ExchangeFunction exchangeFunction = mock(ExchangeFunction.class);
-        when(exchangeFunction.exchange(any())).thenReturn(Mono.just(clientResponse));
-
-        WebClient webClient = WebClient.builder()
-                .exchangeFunction(exchangeFunction)
-                .build();
-
-        when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
-
-        TokenInfo tokenInfo = TokenInfo.builder()
-                .refreshToken("1234")
-                .tokenObtainedAt(4072605312L)
-                .build();
-
-        StepVerifier.create(credentialService.handleDeferredCredential(tokenInfo, "", transactionId, interval, metadata))
-                .expectErrorMatches(error ->
-                        error instanceof IllegalStateException &&
-                                error.getMessage().contains("No credential or new transaction id received in deferred flow")
-                )
-                .verify();
-    }
-
-    @Test
-    void handleDeferredCredential_deserializationFails_shouldReturnFailedDeserializingException() throws Exception {
-        String transactionId = "trans123";
-        Long interval = 1L;
-        String endpoint = "https://issuer.org/deferred";
-
-        CredentialIssuerMetadata metadata = CredentialIssuerMetadata.builder()
-                .deferredCredentialEndpoint(endpoint)
-                .build();
-
-        String badJson = "bad-json-response";
-
-        when(objectMapper.readValue(badJson, CredentialResponse.class))
-                .thenThrow(new JsonProcessingException("Invalid JSON") {
-                });
-
-        ClientResponse clientResponse = ClientResponse.create(HttpStatus.OK)
-                .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
-                .body(badJson)
-                .build();
-
-        ExchangeFunction exchangeFunction = mock(ExchangeFunction.class);
-        when(exchangeFunction.exchange(any())).thenReturn(Mono.just(clientResponse));
-
-        WebClient webClient = WebClient.builder()
-                .exchangeFunction(exchangeFunction)
-                .build();
-
-        when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
-
-        TokenInfo tokenInfo = TokenInfo.builder()
-                .refreshToken("1234")
-                .tokenObtainedAt(4072605312L).build();
-
-        StepVerifier.create(credentialService.handleDeferredCredential(tokenInfo, "", transactionId, interval, metadata))
-                .expectErrorMatches(error ->
-                        error instanceof FailedDeserializingException &&
-                                error.getMessage().contains("Error processing deferred CredentialResponse")
-                )
-                .verify();
-    }
+//    @Test
+//    void handleDeferredCredential_deserializationFails_shouldReturnFailedDeserializingException() throws Exception {
+//        String transactionId = "trans123";
+//        Long interval = 1L;
+//        String endpoint = "https://issuer.org/deferred";
+//
+//        CredentialIssuerMetadata metadata = CredentialIssuerMetadata.builder()
+//                .deferredCredentialEndpoint(endpoint)
+//                .build();
+//
+//        String badJson = "bad-json-response";
+//
+//        when(objectMapper.readValue(badJson, CredentialResponse.class))
+//                .thenThrow(new JsonProcessingException("Invalid JSON") {
+//                });
+//
+//        ClientResponse clientResponse = ClientResponse.create(HttpStatus.OK)
+//                .header(CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON)
+//                .body(badJson)
+//                .build();
+//
+//        ExchangeFunction exchangeFunction = mock(ExchangeFunction.class);
+//        when(exchangeFunction.exchange(any())).thenReturn(Mono.just(clientResponse));
+//
+//        WebClient webClient = WebClient.builder()
+//                .exchangeFunction(exchangeFunction)
+//                .build();
+//
+//        when(webClientConfig.centralizedWebClient()).thenReturn(webClient);
+//
+//        TokenInfo tokenInfo = TokenInfo.builder()
+//                .refreshToken("1234")
+//                .tokenObtainedAt(4072605312L).build();
+//
+//        StepVerifier.create(credentialService.handleDeferredCredential(tokenInfo, "", transactionId, interval, metadata))
+//                .expectErrorMatches(error ->
+//                        error instanceof FailedDeserializingException &&
+//                                error.getMessage().contains("Error processing deferred CredentialResponse")
+//                )
+//                .verify();
+//    }
 
     /*@Test
     void handleDeferredCredential_recursiveCallOnNewTransactionId() throws Exception {

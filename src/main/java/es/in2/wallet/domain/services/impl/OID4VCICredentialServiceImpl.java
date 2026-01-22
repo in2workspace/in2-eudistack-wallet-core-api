@@ -14,15 +14,6 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
-
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import static es.in2.wallet.domain.utils.ApplicationConstants.*;
 
@@ -68,30 +59,10 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
                 // Handle deferred or immediate credential response
                 .flatMap(responseWithStatus1 -> {
                     HttpStatusCode httpStatusCode = responseWithStatus1.statusCode();
-                    if (httpStatusCode.equals(HttpStatusCode.valueOf(200))) {
-                        return handleCredentialResponse(responseWithStatus1);
-                    } else if (httpStatusCode.equals(HttpStatusCode.valueOf(202))) {
-                        return Mono.fromRunnable(() ->
-                                        handleDeferredCredential(
-                                                TokenInfo.builder()
-                                                        .accessToken(tokenResponse.accessToken())
-                                                        .refreshToken(tokenResponse.refreshToken())
-                                                        .tokenObtainedAt(tokenObtainedAt)
-                                                        .expiresIn(tokenResponse.expiresIn())
-                                                        .build(),
-                                                tokenEndpoint,
-                                                responseWithStatus1.credentialResponse().transactionId(),
-                                                responseWithStatus1.credentialResponse().interval(),
-                                                credentialIssuerMetadata)
-                                                .subscribeOn(Schedulers.boundedElastic())
-                                                .subscribe(
-                                                        r -> log.info("ProcessID: {} - Background deferred credential completed", processId),
-                                                        e -> log.error("ProcessID: {} - Background deferred credential failed", processId, e)
-                                                ))
-                                .then(Mono.empty());
-                    } else {
-                        return Mono.error(new IllegalArgumentException("Unexpected HTTP status: " + httpStatusCode));
-                    }
+                    return httpStatusCode.equals(HttpStatusCode.valueOf(200))
+                            || httpStatusCode.equals(HttpStatusCode.valueOf(202))
+                            ? Mono.just(responseWithStatus1)
+                            : Mono.error(new IllegalArgumentException("Unexpected HTTP status: " + httpStatusCode));
                 })
                 .doOnSuccess(finalResponse ->
                         log.info(
@@ -133,81 +104,6 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
     public String getNonceValue() {
         //TO DO: Call nonce_endpoint
         return null;
-    }
-
-    /**
-     * Handles immediate or deferred credential responses:
-     * - If acceptanceToken is present, waits 10 seconds then calls handleDeferredCredential.
-     * - Otherwise, returns the existing response.
-     * Returns a Mono<CredentialResponseWithStatus>.
-     */
-    //TODO: Handle deferred or immediate credential response
-    private Mono<CredentialResponseWithStatus> handleCredentialResponse(
-            CredentialResponseWithStatus responseWithStatus
-    ) {
-        return Mono.just(responseWithStatus);
-
-    }
-
-    /**
-     * Handles the recursive deferred flow. Returns a Mono<CredentialResponse>:
-     * - Parses the server response (JSON) into a CredentialResponse.
-     * - Checks if a new acceptanceToken is present; if so, recurses.
-     * - If the credential is available, returns it.
-     */
-    public Mono<Void> handleDeferredCredential(
-            TokenInfo tokenInfo,
-            String tokenEndpoint,
-            String transactionId,
-            Long interval,
-            CredentialIssuerMetadata credentialIssuerMetadata
-    ) {
-        System.out.println("Deferred Metadata: " + credentialIssuerMetadata.deferredCredentialEndpoint());
-        return Mono.delay(Duration.ofSeconds(interval))
-                .then(ensureValidToken(tokenInfo, tokenEndpoint))
-                .flatMap(validTokenInfo ->
-                        webClient.centralizedWebClient()
-                                .post()
-                                .uri(credentialIssuerMetadata.deferredCredentialEndpoint())
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .header(HEADER_AUTHORIZATION, BEARER + validTokenInfo.accessToken())
-                                .bodyValue(Map.of("transaction_id", transactionId))
-                                .exchangeToMono(response -> {
-                                    if (response.statusCode().is4xxClientError() || response.statusCode().is5xxServerError()) {
-                                        return Mono.error(new RuntimeException(
-                                                "Error during the deferred credential request, error: " + response
-                                        ));
-                                    } else {
-                                        log.info("Deferred credential response retrieved");
-                                        return response.bodyToMono(String.class);
-                                    }
-                                })
-                                .flatMap(responseBody -> {
-                                    try {
-                                        log.debug("Deferred flow body: {}", responseBody);
-                                        CredentialResponse credentialResponse = objectMapper.readValue(responseBody, CredentialResponse.class);
-
-                                        // Recursive call if a new transactionId is received
-                                        if (credentialResponse.transactionId() != null
-                                                && !credentialResponse.transactionId().equals(transactionId)) {
-                                            return handleDeferredCredential(validTokenInfo, tokenEndpoint, credentialResponse.transactionId(), credentialResponse.interval(), credentialIssuerMetadata);
-                                        }
-                                        // If the credential is available, return it
-                                        if (credentialResponse.credentials().get(0).credential() != null) {
-                                            log.debug("Deferred credential signature completed for: {}", transactionId);
-                                            return Mono.empty();
-                                        }
-                                        return Mono.error(new IllegalStateException(
-                                                "No credential or new transaction id received in deferred flow"
-                                        ));
-                                    } catch (Exception e) {
-                                        log.error("Error while processing deferred CredentialResponse", e);
-                                        return Mono.error(new FailedDeserializingException(
-                                                "Error processing deferred CredentialResponse: " + responseBody
-                                        ));
-                                    }
-                                }))
-                .doFirst(() -> log.debug("Starting deferred credential signature for: {}", transactionId));
     }
 
     /**
@@ -307,52 +203,5 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
             return Mono.error(new RuntimeException(
                     "Error while building credential request, error: " + error));
         }
-    }
-
-    private Mono<TokenInfo> ensureValidToken(TokenInfo tokenInfo, String tokenUrl) {
-        System.out.println("HOLAAAAAAAA");
-        long currentTime = Instant.now().getEpochSecond();
-        long expiry = tokenInfo.tokenObtainedAt() + tokenInfo.expiresIn();
-        long safetyWindow = 10;
-
-        if (currentTime < (expiry - safetyWindow)) {
-            return Mono.just(tokenInfo);
-        }
-
-        log.debug("Access token expired or about to expire. Refreshing token");
-        return refreshToken(tokenInfo.refreshToken(), tokenUrl)
-                .flatMap(newTokenResponse ->
-                        Mono.just(TokenInfo.builder()
-                                .accessToken(newTokenResponse.accessToken())
-                                .refreshToken(newTokenResponse.refreshToken())
-                                .tokenObtainedAt(Instant.now().getEpochSecond())
-                                .expiresIn(newTokenResponse.expiresIn())
-                                .build()))
-                .onErrorResume(e -> {
-                    log.error("Refresh token failed or expired. Clearing session.", e);
-                    return Mono.error(new IllegalStateException(
-                            "Refresh token expired. Please request a new Credential Offer."
-                    ));
-                })
-                .doOnSuccess(t -> log.debug("Access token successfully refreshed"));
-    }
-
-    private Mono<TokenResponse> refreshToken(String refreshToken, String tokenUrl) {
-        Map<String, String> formDataMap = new HashMap<>();
-        formDataMap.put("grant_type", REFRESH_TOKEN_GRANT_TYPE);
-        formDataMap.put("refresh_token", refreshToken);
-
-        String xWwwFormUrlencodedBody = formDataMap.entrySet().stream()
-                .map(entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8) + "=" +
-                        URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8))
-                .collect(Collectors.joining("&"));
-
-        return webClient.centralizedWebClient()
-                .post()
-                .uri(tokenUrl)
-                .header(CONTENT_TYPE, CONTENT_TYPE_URL_ENCODED_FORM)
-                .bodyValue(xWwwFormUrlencodedBody)
-                .exchangeToMono(response ->
-                        response.bodyToMono(TokenResponse.class));
     }
 }
