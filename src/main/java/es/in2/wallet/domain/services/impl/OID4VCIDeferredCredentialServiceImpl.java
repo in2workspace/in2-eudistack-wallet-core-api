@@ -61,6 +61,7 @@ public class OID4VCIDeferredCredentialServiceImpl implements OID4VCIDeferredCred
                                                     try {
                                                         log.debug("Deferred flow body: {}", responseBody);
                                                         CredentialResponse credentialResponse = objectMapper.readValue(responseBody, CredentialResponse.class);
+                                                        System.out.println("holaaa Credential Response: " + credentialResponse);
 
                                                         // Recursive call if a new transactionId is received
                                                         if (credentialResponse.transactionId() != null
@@ -73,6 +74,8 @@ public class OID4VCIDeferredCredentialServiceImpl implements OID4VCIDeferredCred
                                                                     credentialIssuerMetadata
                                                             );
                                                         }
+
+                                                        System.out.println("holaaa ha passat: " + credentialResponse);
 
                                                         // If the credential is available, return it
                                                         if (credentialResponse.credentials().get(0).credential() != null) {
