@@ -162,6 +162,7 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
             Long interval,
             CredentialIssuerMetadata credentialIssuerMetadata
     ) {
+        System.out.println("Deferred Metadata: " + credentialIssuerMetadata.deferredCredentialEndpoint());
         return Mono.delay(Duration.ofSeconds(interval))
                 .then(ensureValidToken(tokenInfo, tokenEndpoint))
                 .flatMap(validTokenInfo ->
