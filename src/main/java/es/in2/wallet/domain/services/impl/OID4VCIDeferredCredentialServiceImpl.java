@@ -63,9 +63,8 @@ public class OID4VCIDeferredCredentialServiceImpl implements OID4VCIDeferredCred
                                                         CredentialResponse credentialResponse = objectMapper.readValue(responseBody, CredentialResponse.class);
                                                         System.out.println("holaaa Credential Response: " + credentialResponse);
 
-                                                        // Recursive call if a new transactionId is received
                                                         if (credentialResponse.transactionId() != null
-                                                                && !credentialResponse.transactionId().equals(transactionId)) {
+                                                                && credentialResponse.transactionId().equals(transactionId)) {
                                                             return handleDeferredCredential(
                                                                     validTokenInfo,
                                                                     tokenEndpoint,
