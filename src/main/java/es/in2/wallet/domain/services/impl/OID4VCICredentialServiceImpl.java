@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -80,7 +81,13 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
                                 tokenEndpoint,
                                 responseWithStatus1.credentialResponse().transactionId(),
                                 responseWithStatus1.credentialResponse().interval(),
-                                credentialIssuerMetadata);
+                                credentialIssuerMetadata)
+                                .subscribeOn(Schedulers.boundedElastic())
+                                .doOnSuccess(r ->
+                                        log.info("ProcessID: {} - Background deferred credential completed", processId))
+                                .doOnError(e ->
+                                        log.error("ProcessID: {} - Background deferred credential failed", processId, e))
+                                .then(Mono.empty());
                     } else {
                         return Mono.error(new IllegalArgumentException("Unexpected HTTP status: " + httpStatusCode));
                     }
@@ -147,7 +154,7 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
      * - Checks if a new acceptanceToken is present; if so, recurses.
      * - If the credential is available, returns it.
      */
-    public Mono<CredentialResponseWithStatus> handleDeferredCredential(
+    public Mono<Void> handleDeferredCredential(
             TokenInfo tokenInfo,
             String tokenEndpoint,
             String transactionId,
@@ -185,7 +192,8 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
                                         }
                                         // If the credential is available, return it
                                         if (credentialResponseWithStatus.credentialResponse().credentials().get(0).credential() != null) {
-                                            return Mono.just(credentialResponseWithStatus);
+                                            log.debug("Deferred credential signature completed for: {}", transactionId);
+                                            return Mono.empty();
                                         }
                                         return Mono.error(new IllegalStateException(
                                                 "No credential or new transaction id received in deferred flow"
@@ -196,7 +204,8 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
                                                 "Error processing deferred CredentialResponse: " + responseBody
                                         ));
                                     }
-                                }));
+                                }))
+                .doFirst(() -> log.debug("Starting deferred credential signature for: {}", transactionId));
     }
 
     /**
