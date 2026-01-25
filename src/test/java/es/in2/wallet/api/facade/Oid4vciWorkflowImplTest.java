@@ -101,7 +101,7 @@ class Oid4vciWorkflowImplTest {
             when(oid4vciCredentialService.getCredential(jwtProof,tokenResponse,credentialIssuerMetadata,JWT_VC,List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, JWT_VC)).thenReturn(Mono.just(credentialId));
-            when(deferredCredentialMetadataService.saveDeferredCredentialMetadata(processId, credentialId, credentialResponse.transactionId(), tokenResponse.accessToken(), credentialIssuerMetadata.deferredCredentialEndpoint())).thenReturn(Mono.empty());
+            when(deferredCredentialMetadataService.saveDeferredCredentialMetadata(processId, credentialId, credentialResponse.transactionId(), credentialResponse.notificationId(), tokenResponse.accessToken(), credentialIssuerMetadata.deferredCredentialEndpoint(), credentialIssuerMetadata.notificationEndpoint())).thenReturn(Mono.empty());
 
             StepVerifier.create(credentialIssuanceServiceFacade.execute(processId, authorizationToken, qrContent)).verifyComplete();
         }

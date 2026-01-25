@@ -14,7 +14,8 @@ import java.util.List;
 public record CredentialResponse(
 
         @JsonProperty("credentials") List<Credentials> credentials,
-        @JsonProperty("transaction_id") String transactionId
+        @JsonProperty("transaction_id") String transactionId,
+        @JsonProperty("notification_id") String notificationId
 ) {
         @Builder
         public record Credentials(

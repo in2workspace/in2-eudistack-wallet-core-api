@@ -3,6 +3,9 @@ package es.in2.wallet.application.workflows.issuance.impl;
 import es.in2.wallet.application.dto.*;
 import es.in2.wallet.application.workflows.issuance.Oid4vciWorkflow;
 import es.in2.wallet.domain.services.*;
+import es.in2.wallet.domain.services.impl.NotificationClientServiceImpl;
+import es.in2.wallet.infrastructure.core.config.NotificationRequestWebSocketHandler;
+import es.in2.wallet.infrastructure.core.config.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -30,6 +33,9 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
     private final UserService userService;
     private final CredentialService credentialService;
     private final DeferredCredentialMetadataService deferredCredentialMetadataService;
+    private final WebSocketSessionManager sessionManager;
+    private final NotificationRequestWebSocketHandler notificationRequestWebSocketHandler;
+    private final NotificationClientService notificationClientService;
 
 
     @Override
@@ -144,24 +150,35 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
             CredentialIssuerMetadata credentialIssuerMetadata,
             String format
     ) {
+        final long timeoutSeconds = 55;
+
         return getUserIdFromToken(authorizationToken)
                 // Store the user
-                .flatMap(userId -> userService.storeUser(processId, userId))
-                .doOnNext(userUuid ->
-                        log.info("ProcessID: {} - Stored userUuid: {}", processId, userUuid.toString())
+                .flatMap(userId -> userService.storeUser(processId, userId)
+                        .doOnNext(userUuid ->
+                                log.info("ProcessID: {} - Stored userUuid: {}", processId, userUuid.toString())
+                        )
+                        .map(userUuid -> reactor.util.function.Tuples.of(userId, userUuid))
                 )
                 // Save the credential
-                .flatMap(userUuid -> credentialService.saveCredential(
+                .flatMap(userTuple -> credentialService.saveCredential(
                         processId,
-                        userUuid,
+                        userTuple.getT2(), // userUuid
                         credentialResponseWithStatus.credentialResponse(),
                         format
-                ))
-                .doOnNext(credentialId ->
-                        log.info("ProcessID: {} - Saved credentialId: {}", processId, credentialId)
+                )
+                        .doOnNext(credentialId ->
+                                log.info("ProcessID: {} - Saved credentialId: {}", processId, credentialId)
+                        )
+                        .map(credentialId -> reactor.util.function.Tuples.of(
+                                userTuple.getT1(), // userId
+                                userTuple.getT2(), // userUuid
+                                credentialId
+                        ))
                 )
                 // If status is ACCEPTED, save deferred metadata; otherwise, skip
-                .flatMap(credentialId -> {
+                .flatMap(tuple -> {
+                    String credentialId = tuple.getT3();
                     if (credentialResponseWithStatus.statusCode().equals(HttpStatus.ACCEPTED)) {
                         log.info("ProcessID: {} - Status ACCEPTED, saving deferred credential metadata", processId);
 
@@ -169,18 +186,89 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                         processId,
                                         credentialId,
                                         credentialResponseWithStatus.credentialResponse().transactionId(),
+                                        credentialResponseWithStatus.credentialResponse().notificationId(),
                                         tokenResponse.accessToken(),
-                                        credentialIssuerMetadata.deferredCredentialEndpoint()
+                                        credentialIssuerMetadata.deferredCredentialEndpoint(),
+                                        credentialIssuerMetadata.notificationEndpoint()
                                 )
                                 .doOnNext(deferredUuid ->
                                         log.info("ProcessID: {} - Deferred credential metadata saved with UUID: {}", processId, deferredUuid)
                                 )
-                                .then();
+                                .thenReturn(tuple);
                     } else {
                         log.info("ProcessID: {} - Status is {}, skipping deferred metadata",
                                 processId, credentialResponseWithStatus.statusCode());
+                        return Mono.just(tuple);
+                    }
+                })
+                .flatMap(tuple -> {
+                    String userId = tuple.getT1();
+                    String credentialId = tuple.getT3();
+                    String notificationId = credentialResponseWithStatus.credentialResponse().notificationId();
+
+                    if (notificationId == null || notificationId.isBlank()) {
+                        log.warn("ProcessID: {} - No notificationId in credentialResponse. Skipping issuer notification. credentialId={}",
+                                processId, credentialId);
                         return Mono.empty();
                     }
+
+                    return sessionManager.getSession(userId)
+                            .switchIfEmpty(Mono.error(new RuntimeException("WebSocket session not found for userId=" + userId)))
+                            .flatMap(session -> {
+                                notificationRequestWebSocketHandler.sendNotificationDecisionRequest(
+                                        session,
+                                        WebSocketServerNotificationMessage.builder()
+                                                .decision(true)
+                                                .timeout(timeoutSeconds)
+                                                .build()
+                                );
+                                return notificationRequestWebSocketHandler.getDecisionResponses(userId)
+                                        .next()
+                                        .timeout(java.time.Duration.ofSeconds(timeoutSeconds));
+                            })
+                            .flatMap(decision -> {
+                                boolean accepted = "ACCEPTED".equalsIgnoreCase(decision);
+
+                                if (accepted) {
+                                    log.info("ProcessID: {} - User ACCEPTED credentialId={}", processId, credentialId);
+                                    return notificationClientService.notifyIssuer(
+                                            processId,
+                                            tokenResponse.accessToken(),
+                                            notificationId,
+                                            NotificationEvent.CREDENTIAL_ACCEPTED,
+                                            null,
+                                            credentialIssuerMetadata
+                                    );
+                                }
+
+                                log.info("ProcessID: {} - User REJECTED credentialId={}", processId, credentialId);
+
+                                return credentialService.deleteCredential(processId, credentialId, userId)
+                                        .onErrorResume(e -> {
+                                            log.warn("ProcessID: {} - Failed to delete credentialId={} on reject: {}",
+                                                    processId, credentialId, e.getMessage(), e);
+                                            return Mono.empty();
+                                        })
+                                        .then(notificationClientService.notifyIssuer(
+                                                processId,
+                                                tokenResponse.accessToken(),
+                                                notificationId,
+                                                NotificationEvent.CREDENTIAL_DELETED,
+                                                "User rejected credential",
+                                                credentialIssuerMetadata
+                                        ));
+                            })
+                            .onErrorResume(java.util.concurrent.TimeoutException.class, e -> {
+                                log.warn("ProcessID: {} - Timeout waiting user decision. credentialId={}", processId, credentialId);
+                                return notificationClientService.notifyIssuer(
+                                        processId,
+                                        tokenResponse.accessToken(),
+                                        notificationId,
+                                        NotificationEvent.CREDENTIAL_FAILURE,
+                                        "Timeout waiting for user decision",
+                                        credentialIssuerMetadata
+                                );
+                            });
                 })
                 .doOnError(error ->
                         log.error("ProcessID: {} - handleCredentialResponse error: {}",

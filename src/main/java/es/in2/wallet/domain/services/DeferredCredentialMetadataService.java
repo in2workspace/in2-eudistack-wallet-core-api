@@ -5,7 +5,7 @@ import reactor.core.publisher.Mono;
 
 
 public interface DeferredCredentialMetadataService {
-    Mono<String> saveDeferredCredentialMetadata(String processId, String credentialId, String transactionId, String accessToken, String deferredEndpoint);
+    Mono<String> saveDeferredCredentialMetadata(String processId, String credentialId, String transactionId, String notificationId, String accessToken, String deferredEndpoint, String notificationEndpoint);
     Mono<DeferredCredentialMetadata> getDeferredCredentialMetadataByCredentialId(String processId, String credentialId);
     Mono<Void> deleteDeferredCredentialMetadataByCredentialId(String processId, String credentialId);
     Mono<Void> updateDeferredCredentialMetadataTransactionIdByCredentialId(String processId, String credentialId, String transactionId);
