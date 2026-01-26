@@ -205,7 +205,6 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                     String userId = tuple.getT1();
                     String credentialId = tuple.getT3();
                     String notificationId = credentialResponseWithStatus.credentialResponse().notificationId();
-                    System.out.println(credentialResponseWithStatus.credentialResponse());
                     if (notificationId == null || notificationId.isBlank()) {
                         log.warn("ProcessID: {} - No notificationId in credentialResponse. Skipping issuer notification. credentialId={}",
                                 processId, credentialId);
