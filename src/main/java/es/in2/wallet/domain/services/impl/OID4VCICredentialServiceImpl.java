@@ -195,7 +195,6 @@ public class OID4VCICredentialServiceImpl implements OID4VCICredentialService {
                             return response.bodyToMono(String.class)
                                     .handle((responseBody, sink) -> {
                                         try {
-                                            System.out.println(responseBody);
                                             CredentialResponse credentialResponse =
                                                     objectMapper.readValue(responseBody, CredentialResponse.class);
 

@@ -39,7 +39,7 @@ public class NotificationClientServiceImpl implements NotificationClientService 
         return webClient.centralizedWebClient()
                 .post()
                 .uri(credentialIssuerMetadata.notificationEndpoint())
-                .header(HEADER_AUTHORIZATION, BEARER)
+                .header(HEADER_AUTHORIZATION, BEARER + bearerToken)
                 .bodyValue(notificationRequest)
                 .exchangeToMono(response -> {
                     if (response.statusCode().is4xxClientError() || response.statusCode().is5xxServerError()) {
