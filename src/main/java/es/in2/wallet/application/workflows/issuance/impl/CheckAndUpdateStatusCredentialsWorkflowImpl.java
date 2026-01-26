@@ -14,7 +14,10 @@ import es.in2.wallet.domain.services.StatusListCredentialService;
 import es.in2.wallet.infrastructure.core.config.WebClientConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -23,7 +26,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static es.in2.wallet.domain.utils.ApplicationConstants.REVOCATION;
+import static es.in2.wallet.domain.utils.ApplicationConstants.*;
 
 
 @Slf4j
@@ -77,19 +80,21 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
             return Flux.empty();
         }
 
-        String rawUrl = credentialStatus.statusListCredential().trim();
+        String rawUrl = credentialStatus.statusListCredential();
         String listIndex = credentialStatus.statusListIndex().trim();
         String type = credentialStatus.type().trim();
         log.info("Type: " + type);
 
-        if (!isValidStatusListCredentialUrl(processId, credential, rawUrl)) {
+        Optional<URI> statusListUriOpt = parseAndValidateStatusListCredentialUri(processId, credential, rawUrl);
+        if (statusListUriOpt.isEmpty()) {
             return Flux.empty();
         }
 
-        String cleanedUrl = URI.create(rawUrl.trim()).toString();
+        URI statusListUri = statusListUriOpt.get();
+        String cleanedUrl = statusListUri.toString();
 
         // legacy
-        if ("PlainListEntity".equals(type)) {
+        if (PLAIN_LIST_ENTITY.equals(type)) {
             Mono<List<String>> revokedNoncesMono = nonceCache.computeIfAbsent(cleanedUrl, k ->
                     getRevokedNoncesFromIssuer(k)
                             .doOnError(e -> log.error("ProcessID: {} - Error fetching nonces from {}: {}", processId, k, e.toString()))
@@ -108,7 +113,7 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
                     .onErrorResume(e -> Flux.empty());
         }
 
-        if ("BitstringStatusListEntry".equals(type)) {
+        if (BIT_STRING_STATUS_LIST_ENTRY.equals(type)) {
             final int index;
             try {
                 index = Integer.parseInt(listIndex);
@@ -227,24 +232,54 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
                 .get()
                 .uri(statusListCredentialUrl)
                 .header("Accept", "application/vc+jwt")
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(jwtString -> {
-                    StatusListCredentialData data = statusListCredentialService.parse(jwtString);
-
-                    statusListCredentialService.validateStatusPurposeMatches(data.statusPurpose(), expectedPurpose);
-
-                    return data.rawBitstringBytes();
+                .exchangeToMono(response -> {
+                    HttpStatusCode status = response.statusCode();
+                    if (status.isError()) {
+                        return response.bodyToMono(String.class)
+                                .defaultIfEmpty("")
+                                .flatMap(body -> Mono.error(new WebClientResponseException(
+                                        "Status list issuer returned error",
+                                        status.value(),
+                                        status.toString(),
+                                        response.headers().asHttpHeaders(),
+                                        body.getBytes(),
+                                        null
+                                )));
+                    }
+                    return response.bodyToMono(String.class);
                 })
-                .onErrorMap(e -> new ParseErrorException("Error parsing StatusListCredential JWT: " + e.getMessage()));
+                .map(String::trim)
+                .map(jwtString -> {
+                    try {
+                        StatusListCredentialData data = statusListCredentialService.parse(jwtString);
+                        statusListCredentialService.validateStatusPurposeMatches(data.statusPurpose(), expectedPurpose);
+                        return data.rawBitstringBytes();
+                    } catch (Exception e) {
+                        throw new ParseErrorException("Error parsing/validating StatusListCredential JWT: " + e.getMessage());
+                    }
+                })
+                .doOnError(e -> {
+                    if (e instanceof WebClientResponseException ex) {
+                        log.warn("Bitstring issuer HTTP error. url={} status={} body={}",
+                                statusListCredentialUrl, ex.getStatusCode(), safeBody(ex.getResponseBodyAsString()));
+                    } else if (e instanceof WebClientRequestException) {
+                        log.warn("Bitstring issuer request error. url={} message={}",
+                                statusListCredentialUrl, e.getMessage());
+                    } else if (e instanceof ParseErrorException) {
+                        log.warn("Bitstring issuer parse/validation error. url={} message={}",
+                                statusListCredentialUrl, e.getMessage());
+                    } else {
+                        log.warn("Bitstring issuer unexpected error. url={} message={}",
+                                statusListCredentialUrl, e.toString());
+                    }
+                });
     }
 
-    private boolean isValidStatusListCredentialUrl(String processId, Credential credential, String rawUrl) {
-        log.info("Validating statusListCredential URL: {}", rawUrl);
+    private Optional<URI> parseAndValidateStatusListCredentialUri(String processId, Credential credential, String rawUrl) {
         if (rawUrl == null || rawUrl.isBlank()) {
             log.warn("ProcessID: {} - Credential {} has blank statusListCredential URL",
                     processId, credential.getId());
-            return false;
+            return Optional.empty();
         }
 
         final URI uri;
@@ -253,18 +288,22 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
         } catch (IllegalArgumentException e) {
             log.warn("ProcessID: {} - Credential {} has invalid statusListCredential URL '{}'",
                     processId, credential.getId(), rawUrl);
-            return false;
+            return Optional.empty();
         }
 
         if (!"https".equalsIgnoreCase(uri.getScheme())) {
             log.warn("ProcessID: {} - Credential {} statusListCredential URL is not HTTPS: '{}'",
                     processId, credential.getId(), rawUrl);
-            return false;
+            return Optional.empty();
         }
 
-        return true;
+        return Optional.of(uri);
     }
 
-
+    private String safeBody(String body) {
+        if (body == null) return "";
+        int max = 500;
+        return body.length() <= max ? body : body.substring(0, max) + "...";
+    }
 
 }
