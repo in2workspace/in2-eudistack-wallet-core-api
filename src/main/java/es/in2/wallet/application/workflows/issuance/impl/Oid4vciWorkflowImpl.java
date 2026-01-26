@@ -326,7 +326,10 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                 ? md.credentialIssuer()
                 : vcJson.path("issuer").asText("Unknown issuer");
 
+        System.out.println(vcJson.asText());
+
         JsonNode cs = vcJson.path("credentialSubject");
+        System.out.println(cs.asText());
 
         String subjectName = null;
         if (cs.hasNonNull("name")) {
