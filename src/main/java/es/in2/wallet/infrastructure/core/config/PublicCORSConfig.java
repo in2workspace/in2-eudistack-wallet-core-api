@@ -32,6 +32,7 @@ public class PublicCORSConfig {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration(ENDPOINT_PIN, configuration);
+        source.registerCorsConfiguration(NOTIFICATION_PIN, configuration);
         source.registerCorsConfiguration(ENDPOINT_HEALTH, configuration);
         source.registerCorsConfiguration(ENDPOINT_PROMETHEUS, configuration);
 
