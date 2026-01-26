@@ -265,7 +265,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                                 credentialIssuerMetadata
                                         ));
                             })
-                            .onErrorResume(java.util.concurrent.TimeoutException.class, e -> {
+                            .onErrorResume(Throwable.class, e -> {
                                 log.warn("ProcessID: {} - Timeout waiting user decision. credentialId={}", processId, credentialId);
                                 return notificationClientService.notifyIssuer(
                                         processId,
