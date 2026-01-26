@@ -1,5 +1,7 @@
 package es.in2.wallet.application.workflows.issuance.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import es.in2.wallet.application.dto.*;
 import es.in2.wallet.application.workflows.issuance.Oid4vciWorkflow;
 import es.in2.wallet.domain.services.*;
@@ -12,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -36,6 +40,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
     private final WebSocketSessionManager sessionManager;
     private final NotificationRequestWebSocketHandler notificationRequestWebSocketHandler;
     private final NotificationClientService notificationClientService;
+    private final ObjectMapper objectMapper;
 
 
     @Override
@@ -213,18 +218,21 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
                     return sessionManager.getSession(userId)
                             .switchIfEmpty(Mono.error(new RuntimeException("WebSocket session not found for userId=" + userId)))
-                            .flatMap(session -> {
-                                notificationRequestWebSocketHandler.sendNotificationDecisionRequest(
-                                        session,
-                                        WebSocketServerNotificationMessage.builder()
-                                                .decision(true)
-                                                .timeout(timeoutSeconds)
-                                                .build()
-                                );
-                                return notificationRequestWebSocketHandler.getDecisionResponses(userId)
-                                        .next()
-                                        .timeout(java.time.Duration.ofSeconds(timeoutSeconds));
-                            })
+                            .flatMap(session ->
+                                    buildCredentialPreview(credentialResponseWithStatus.credentialResponse(), credentialIssuerMetadata)
+                                            .doOnNext(preview -> notificationRequestWebSocketHandler.sendNotificationDecisionRequest(
+                                                    session,
+                                                    WebSocketServerNotificationMessage.builder()
+                                                            .decision(true)
+                                                            .credentialPreview(preview)
+                                                            .timeout(timeoutSeconds)
+                                                            .build()
+                                            ))
+                                            .then(notificationRequestWebSocketHandler.getDecisionResponses(userId)
+                                                    .next()
+                                                    .timeout(java.time.Duration.ofSeconds(timeoutSeconds))
+                                            )
+                            )
                             .flatMap(decision -> {
                                 boolean accepted = "ACCEPTED".equalsIgnoreCase(decision);
 
@@ -275,4 +283,72 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                 )
                 .then();
     }
+
+    private Mono<CredentialPreview> buildCredentialPreview(CredentialResponse credentialResponse,CredentialIssuerMetadata issuerMetadata) {
+        return Mono.justOrEmpty(credentialResponse)
+                .flatMap(cr -> Mono.justOrEmpty(cr.credentials()))
+                .filter(list -> !list.isEmpty())
+                .map(list -> list.get(0))
+                .map(CredentialResponse.Credentials::credential)
+                .filter(cred -> cred != null && !cred.isBlank())
+                .flatMap(this::decodeVc)
+                .map(vcJson -> mapVcToPreview(vcJson, issuerMetadata))
+                .onErrorResume(e -> {
+                    log.warn("Credential preview generation failed: {}", e.getMessage());
+                    return Mono.empty();
+                });
+    }
+
+    private Mono<JsonNode> decodeVc(String credential) {
+        return Mono.defer(() -> {
+            try {
+                // JWT VC
+                if (credential.chars().filter(c -> c == '.').count() == 2) {
+                    String payloadB64 = credential.split("\\.")[1];
+                    byte[] decoded = Base64.getUrlDecoder().decode(payloadB64);
+                    JsonNode payload = objectMapper.readTree(decoded);
+
+                    return Mono.just(payload.has("vc") ? payload.get("vc") : payload);
+                }
+
+                // JSON VC
+                return Mono.just(objectMapper.readTree(credential));
+
+            } catch (Exception e) {
+                return Mono.error(e);
+            }
+        });
+    }
+
+    private CredentialPreview mapVcToPreview(JsonNode vcJson, CredentialIssuerMetadata md) {
+
+        String issuer = md != null
+                ? md.credentialIssuer()
+                : vcJson.path("issuer").asText("Unknown issuer");
+
+        JsonNode cs = vcJson.path("credentialSubject");
+
+        String subjectName = null;
+        if (cs.hasNonNull("name")) {
+            subjectName = cs.get("name").asText();
+        }
+
+        String organization = cs
+                .path("mandate")
+                .path("mandator")
+                .path("organization")
+                .asText(null);
+
+        String expirationDate = vcJson.path("expirationDate").asText(null);
+
+        return new CredentialPreview(
+                issuer,
+                subjectName,
+                organization,
+                expirationDate
+        );
+    }
+
+
+
 }
