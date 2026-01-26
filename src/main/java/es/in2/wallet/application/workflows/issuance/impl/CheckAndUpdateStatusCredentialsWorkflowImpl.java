@@ -2,14 +2,15 @@ package es.in2.wallet.application.workflows.issuance.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nimbusds.jwt.SignedJWT;
 import es.in2.wallet.application.dto.CredentialStatus;
 import es.in2.wallet.application.dto.CredentialStatusResponse;
 import es.in2.wallet.application.workflows.issuance.CheckAndUpdateStatusCredentialsWorkflow;
 import es.in2.wallet.domain.entities.Credential;
+import es.in2.wallet.domain.entities.StatusListCredentialData;
 import es.in2.wallet.domain.enums.LifeCycleStatus;
 import es.in2.wallet.domain.exceptions.ParseErrorException;
 import es.in2.wallet.domain.services.CredentialService;
+import es.in2.wallet.domain.services.StatusListCredentialService;
 import es.in2.wallet.infrastructure.core.config.WebClientConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,15 +18,12 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.URI;
-import java.text.ParseException;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.zip.GZIPInputStream;
+
+import static es.in2.wallet.domain.utils.ApplicationConstants.REVOCATION;
 
 
 @Slf4j
@@ -33,6 +31,7 @@ import java.util.zip.GZIPInputStream;
 @RequiredArgsConstructor
 public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpdateStatusCredentialsWorkflow {
     private final CredentialService credentialService;
+    private final StatusListCredentialService statusListCredentialService;
     private final ObjectMapper objectMapper;
     private final WebClientConfig webClient;
 
@@ -67,7 +66,7 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
 
 
     private Flux<Credential> handleCredentialStatusCheck(String processId, Credential credential, Map<String, Mono<List<String>>> nonceCache, Map<String, Mono<byte[]>> bitstringCache) {
-        log.info("Process ID: {}, handleCredentialStatusCheck - credential: {}", processId, credential);
+        log.info("ProcessID: {} - Checking credentialId={}", processId, credential.getId());
         if (isCredentialExpired(credential)) {
             return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.EXPIRED);
         }
@@ -106,7 +105,6 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
                         log.debug("ProcessID: {} - Credential {} not revoked (legacy)", processId, credential.getId());
                         return Flux.empty();
                     })
-                    // If we cannot fetch/parse the list, do nothing (no status change).
                     .onErrorResume(e -> Flux.empty());
         }
 
@@ -126,23 +124,27 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
                 return Flux.empty();
             }
 
-            Mono<byte[]> rawBytesMono = bitstringCache.computeIfAbsent(cleanedUrl, url ->
-                    getBitstringRawBytesFromIssuer(url)
-                            .doOnError(e -> log.error("ProcessID: {} - Error fetching bitstring from {}: {}", processId, url, e.toString()))
-                            .cache()
-            );
+            Mono<byte[]> rawBytesMono = bitstringCache.computeIfAbsent(cleanedUrl, url -> {
+                log.debug("ProcessID: {} - bitstringCache MISS url={} expectedPurpose={}", processId, url, REVOCATION);
+
+                return getBitstringRawBytesFromIssuer(url, REVOCATION)
+                        .doOnSuccess(bytes -> log.info("ProcessID: {} - Fetched bitstring bytes len={} from {}", processId, bytes.length, url))
+                        .doOnError(e -> log.error("ProcessID: {} - Error fetching bitstring from {}: {}", processId, url, e.toString()))
+                        .cache();
+            });
 
             return rawBytesMono
                     .flatMapMany(rawBytes -> {
-                        int maxBits = rawBytes.length * 8;
+                        int maxBits = statusListCredentialService.maxBits(rawBytes);
                         if (index >= maxBits) {
                             log.warn("ProcessID: {} - statusListIndex out of range for credential {}. index={}, maxBits={}",
                                     processId, credential.getId(), index, maxBits);
                             return Flux.empty();
                         }
 
-                        boolean revoked = isBitSet(rawBytes, index);
-                        log.info("Revoked? " + revoked);
+                        boolean revoked = statusListCredentialService.isBitSet(rawBytes, index);
+                        log.info("ProcessID: {} - credentialId={} bitstring revoked={}", processId, credential.getId(), revoked);
+
                         if (revoked) {
                             return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.REVOKED);
                         }
@@ -150,7 +152,8 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
                         log.debug("ProcessID: {} - Credential {} not revoked (bitstring)", processId, credential.getId());
                         return Flux.empty();
                     })
-                    // If we cannot fetch/parse the list, do nothing (no status change).
+                    .doOnError(e -> log.warn("ProcessID: {} - credentialId={} cannot verify bitstring status: {}",
+                            processId, credential.getId(), e.toString()))
                     .onErrorResume(e -> Flux.empty());
         }
 
@@ -219,7 +222,7 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
                 });
     }
 
-    private Mono<byte[]> getBitstringRawBytesFromIssuer(String statusListCredentialUrl) {
+    private Mono<byte[]> getBitstringRawBytesFromIssuer(String statusListCredentialUrl, String expectedPurpose) {
         return webClient.centralizedWebClient()
                 .get()
                 .uri(statusListCredentialUrl)
@@ -227,86 +230,13 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
                 .retrieve()
                 .bodyToMono(String.class)
                 .map(jwtString -> {
-                    try {
-                        SignedJWT signedJWT = SignedJWT.parse(jwtString);
+                    StatusListCredentialData data = statusListCredentialService.parse(jwtString);
 
-                        JsonNode claims = objectMapper.valueToTree(
-                                signedJWT.getJWTClaimsSet().toJSONObject()
-                        );
+                    statusListCredentialService.validateStatusPurposeMatches(data.statusPurpose(), expectedPurpose);
 
-                        JsonNode credentialSubject = claims.get("credentialSubject");
-                        if (credentialSubject == null || credentialSubject.isNull()) {
-                            throw new ParseErrorException("Missing credentialSubject");
-                        }
-
-                        JsonNode encodedListNode = credentialSubject.get("encodedList");
-                        if (encodedListNode == null || !encodedListNode.isTextual() || encodedListNode.asText().isBlank()) {
-                            throw new ParseErrorException("Missing or invalid encodedList");
-                        }
-
-                        return decodeEncodedListToRawBytes(encodedListNode.asText());
-
-                    } catch (ParseException e) {
-                        throw new ParseErrorException("Invalid JWT format: " + e.getMessage());
-                    } catch (Exception e) {
-                        // Keep a single failure mode for this path
-                        throw new ParseErrorException("Error parsing StatusListCredential JWT: " + e.getMessage());
-                    }
-                });
-    }
-
-
-    public static byte[] decodeEncodedListToRawBytes(String encodedList) {
-        if (encodedList == null || encodedList.isBlank()) {
-            throw new IllegalArgumentException("encodedList cannot be blank");
-        }
-
-        String payload = encodedList.trim();
-        if (payload.charAt(0) != 'u') {
-            throw new IllegalArgumentException("encodedList must start with multibase base64url prefix 'u'");
-        }
-
-        byte[] gzipped = Base64.getUrlDecoder().decode(payload.substring(1));
-        return gunzip(gzipped);
-    }
-
-    public static boolean isBitSet(byte[] rawBytes, int bitIndex) {
-        log.info("isBitSet - bitIndex: " + bitIndex);
-        if (rawBytes == null) {
-            throw new IllegalArgumentException("rawBytes cannot be null");
-        }
-        if (bitIndex < 0) {
-            throw new IllegalArgumentException("bitIndex must be >= 0");
-        }
-
-        int maxBits = rawBytes.length * 8;
-        if (bitIndex >= maxBits) {
-            throw new IllegalArgumentException("bitIndex out of range. maxBits=" + maxBits + ", bitIndex=" + bitIndex);
-        }
-
-        // LSB-first in each byte
-        int byteIndex = bitIndex / 8;
-        int bitInByte = bitIndex % 8;
-        int mask = 1 << bitInByte;
-
-        return (rawBytes[byteIndex] & mask) != 0;
-    }
-
-    private static byte[] gunzip(byte[] input) {
-        log.info("gunzip");
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(input);
-             GZIPInputStream gzip = new GZIPInputStream(bais);
-             ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-
-            byte[] buffer = new byte[8 * 1024];
-            int read;
-            while ((read = gzip.read(buffer)) != -1) {
-                baos.write(buffer, 0, read);
-            }
-            return baos.toByteArray();
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to gunzip content: " + e.getMessage(), e);
-        }
+                    return data.rawBitstringBytes();
+                })
+                .onErrorMap(e -> new ParseErrorException("Error parsing StatusListCredential JWT: " + e.getMessage()));
     }
 
     private boolean isValidStatusListCredentialUrl(String processId, Credential credential, String rawUrl) {

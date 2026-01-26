@@ -48,4 +48,5 @@ public class ApplicationConstants {
     public static final String ENDPOINT_PIN = "/api/v1/pin";
     public static final String ENDPOINT_HEALTH = "/health";
     public static final String ENDPOINT_PROMETHEUS = "/prometheus";
+    public static final String REVOCATION = "revocation";
 }
