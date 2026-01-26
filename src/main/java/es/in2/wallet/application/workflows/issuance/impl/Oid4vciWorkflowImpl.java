@@ -235,7 +235,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                             tokenResponse.accessToken(),
                                             notificationId,
                                             NotificationEvent.CREDENTIAL_ACCEPTED,
-                                            null,
+                                            "Credential accepted by user and successfully stored in wallet",
                                             credentialIssuerMetadata
                                     );
                                 }
