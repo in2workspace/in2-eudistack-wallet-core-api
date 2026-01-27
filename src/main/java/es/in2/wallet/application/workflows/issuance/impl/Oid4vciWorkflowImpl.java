@@ -155,7 +155,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
             CredentialIssuerMetadata credentialIssuerMetadata,
             String format
     ) {
-        final long timeoutSeconds = 55;
+        final long timeoutSeconds = 65;
 
         return getUserIdFromToken(authorizationToken)
                 // Store the user
@@ -327,27 +327,31 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
     private CredentialPreview mapVcToPreview(JsonNode vcJson, CredentialIssuerMetadata md) {
         System.out.println("XIVATO5");
-        String issuer = md != null
-                ? md.credentialIssuer()
-                : vcJson.path("issuer").asText("Unknown issuer");
-
-        System.out.println(vcJson.asText());
+        System.out.println(vcJson.toPrettyString());
 
         JsonNode cs = vcJson.path("credentialSubject");
-        System.out.println(cs.asText());
+        System.out.println(cs.toPrettyString());
+        String issuer = cs.path("issuer").path("commonName").asText(null);
 
-        String subjectName = null;
-        if (cs.hasNonNull("name")) {
-            subjectName = cs.get("name").asText();
+        if (issuer == null || issuer.isBlank()) {
+            JsonNode issuerNode = vcJson.path("issuer");
+            issuer = issuerNode.isTextual()
+                    ? issuerNode.asText()
+                    : issuerNode.path("id").asText(null);
         }
 
-        String organization = cs
-                .path("mandate")
-                .path("mandator")
-                .path("organization")
-                .asText(null);
+        String subjectName = null;
+        JsonNode mandatee = cs.path("mandate").path("mandatee");
+        String firstName = mandatee.path("firstName").asText(null);
+        String lastName  = mandatee.path("lastName").asText(null);
 
-        String expirationDate = vcJson.path("expirationDate").asText(null);
+        if (firstName != null || lastName != null) {
+            subjectName = ((firstName != null) ? firstName : "") + " " + ((lastName != null) ? lastName : "");
+            subjectName = subjectName.trim();
+            if (subjectName.isBlank()) subjectName = null;
+        }
+        String organization = cs.path("mandate").path("mandator").path("organization").asText(null);
+        String expirationDate = vcJson.path("validUntil").asText(null);
 
         return new CredentialPreview(
                 issuer,
