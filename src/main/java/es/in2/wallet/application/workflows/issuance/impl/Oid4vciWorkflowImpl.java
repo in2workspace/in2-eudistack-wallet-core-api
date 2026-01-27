@@ -216,7 +216,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                     return sessionManager.getSession(userId)
                             .switchIfEmpty(Mono.error(new RuntimeException("WebSocket session not found for userId=" + userId)))
                             .flatMap(session ->
-                                    buildCredentialPreview(credentialResponseWithStatus.credentialResponse(), credentialIssuerMetadata)
+                                    buildCredentialPreview(credentialResponseWithStatus.credentialResponse())
                                             .doOnNext(preview -> notificationRequestWebSocketHandler.sendNotificationDecisionRequest(
                                                     session,
                                                     WebSocketServerNotificationMessage.builder()
@@ -228,18 +228,19 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                             ))
                                             .thenReturn(tuple)
                             )
-                            .doOnNext(t -> {
-                                startDecisionFlowDetached(
-                                        processId,
-                                        userId,
-                                        credentialId,
-                                        notificationId,
-                                        tokenResponse.accessToken(),
-                                        credentialIssuerMetadata,
-                                        timeoutSeconds
-                                );
-                            })
+                            .doOnSuccess(ignored ->
+                                    startDecisionFlowDetached(
+                                            processId,
+                                            userId,
+                                            credentialId,
+                                            notificationId,
+                                            tokenResponse.accessToken(),
+                                            credentialIssuerMetadata,
+                                            timeoutSeconds
+                                    )
+                            )
                             .then();
+
                 });
     }
 
@@ -297,7 +298,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
     }
 
 
-    private Mono<CredentialPreview> buildCredentialPreview(CredentialResponse credentialResponse,CredentialIssuerMetadata issuerMetadata) {
+    private Mono<CredentialPreview> buildCredentialPreview(CredentialResponse credentialResponse) {
         return Mono.justOrEmpty(credentialResponse)
                 .flatMap(cr -> Mono.justOrEmpty(cr.credentials()))
                 .filter(list -> !list.isEmpty())
@@ -334,27 +335,27 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
     private CredentialPreview mapVcToPreview(JsonNode vcJson) {
         JsonNode cs = vcJson.path("credentialSubject");
-        String issuer = cs.path("issuer").path("commonName").asText(null);
+        String issuer = String.valueOf(cs.path("issuer").path("commonName"));
 
         if (issuer == null || issuer.isBlank()) {
             JsonNode issuerNode = vcJson.path("issuer");
             issuer = issuerNode.isTextual()
                     ? issuerNode.asText()
-                    : issuerNode.path("id").asText(null);
+                    : String.valueOf(issuerNode.path("id"));
         }
 
         String subjectName = null;
         JsonNode mandatee = cs.path("mandate").path("mandatee");
-        String firstName = mandatee.path("firstName").asText(null);
-        String lastName  = mandatee.path("lastName").asText(null);
+        String firstName = String.valueOf(mandatee.path("firstName"));
+        String lastName  = String.valueOf(mandatee.path("lastName"));
 
         if (firstName != null || lastName != null) {
             subjectName = ((firstName != null) ? firstName : "") + " " + ((lastName != null) ? lastName : "");
             subjectName = subjectName.trim();
             if (subjectName.isBlank()) subjectName = null;
         }
-        String organization = cs.path("mandate").path("mandator").path("organization").asText(null);
-        String expirationDate = vcJson.path("validUntil").asText(null);
+        String organization = String.valueOf(cs.path("mandate").path("mandator").path("organization"));
+        String expirationDate = String.valueOf(vcJson.path("validUntil"));
 
         return new CredentialPreview(
                 issuer,

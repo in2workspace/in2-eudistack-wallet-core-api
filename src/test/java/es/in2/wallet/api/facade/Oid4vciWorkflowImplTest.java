@@ -349,11 +349,11 @@ class Oid4vciWorkflowImplTest {
                     .thenReturn(Mono.just(jwtProof));
 
             when(oid4vciCredentialService.getCredential(
-                    eq(jwtProof),
-                    eq(tokenResponse),
-                    eq(credentialIssuerMetadata),
-                    eq(JWT_VC),
-                    eq("LEARCredential")
+                    jwtProof,
+                    tokenResponse,
+                    credentialIssuerMetadata,
+                    JWT_VC,
+                    "LEARCredential"
             )).thenReturn(Mono.just(crws));
 
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
@@ -458,7 +458,7 @@ class Oid4vciWorkflowImplTest {
             when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
 
-            when(oid4vciCredentialService.getCredential(eq(jwtProof), eq(tokenResponse), eq(credentialIssuerMetadata), eq(JWT_VC), eq("LEARCredential")))
+            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, JWT_VC,"LEARCredential"))
                     .thenReturn(Mono.just(crws));
 
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
@@ -559,7 +559,7 @@ class Oid4vciWorkflowImplTest {
             when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
 
-            when(oid4vciCredentialService.getCredential(eq(jwtProof), eq(tokenResponse), eq(credentialIssuerMetadata), eq(JWT_VC), eq("LEARCredential")))
+            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata,JWT_VC, "LEARCredential"))
                     .thenReturn(Mono.just(crws));
 
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
