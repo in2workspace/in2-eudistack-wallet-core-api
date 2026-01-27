@@ -7,14 +7,15 @@ import es.in2.wallet.application.dto.*;
 import es.in2.wallet.application.workflows.issuance.impl.Oid4vciWorkflowImpl;
 import es.in2.wallet.domain.services.*;
 import es.in2.wallet.domain.utils.ApplicationUtils;
+import es.in2.wallet.infrastructure.core.config.NotificationRequestWebSocketHandler;
+import es.in2.wallet.infrastructure.core.config.WebSocketSessionManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.reactive.socket.WebSocketSession;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -23,7 +24,7 @@ import java.util.*;
 import static es.in2.wallet.domain.utils.ApplicationConstants.JWT_VC;
 import static es.in2.wallet.domain.utils.ApplicationUtils.extractResponseType;
 import static es.in2.wallet.domain.utils.ApplicationUtils.getUserIdFromToken;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class Oid4vciWorkflowImplTest {
@@ -50,6 +51,12 @@ class Oid4vciWorkflowImplTest {
     private UserService userService;
     @Mock
     private DeferredCredentialMetadataService deferredCredentialMetadataService;
+    @Mock private WebSocketSessionManager sessionManager;
+    @Mock private NotificationRequestWebSocketHandler notificationRequestWebSocketHandler;
+    @Mock private NotificationClientService notificationClientService;
+
+    @Spy
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private Oid4vciWorkflowImpl credentialIssuanceServiceFacade;
@@ -72,13 +79,14 @@ class Oid4vciWorkflowImplTest {
                                     .build()))
                     .credentialIssuer("issuer")
                     .deferredCredentialEndpoint("https://example.com/deferred")
+                    .notificationEndpoint("https://example.com/notify")
                     .build();
 
             TokenResponse tokenResponse = TokenResponse.builder().accessToken("ey1234").build();
             List<CredentialResponse.Credentials> credentialList = List.of(
                     new CredentialResponse.Credentials("unsigned_credential")
             );
-            CredentialResponse credentialResponse = CredentialResponse.builder().credentials(credentialList).transactionId("123").build();
+            CredentialResponse credentialResponse = CredentialResponse.builder().credentials(credentialList).transactionId("123").notificationId(null).build();
             CredentialResponseWithStatus credentialResponseWithStatus = CredentialResponseWithStatus.builder().statusCode(HttpStatus.ACCEPTED).credentialResponse(credentialResponse).build();
             String did = "did:ebsi:123";
             String json = "{\"credential_request\":\"example\"}";
@@ -102,6 +110,8 @@ class Oid4vciWorkflowImplTest {
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, JWT_VC)).thenReturn(Mono.just(credentialId));
             when(deferredCredentialMetadataService.saveDeferredCredentialMetadata(processId, credentialId, credentialResponse.transactionId(), credentialResponse.notificationId(), tokenResponse.accessToken(), credentialIssuerMetadata.deferredCredentialEndpoint(), credentialIssuerMetadata.notificationEndpoint())).thenReturn(Mono.empty());
+            WebSocketSession mockSession = mock(WebSocketSession.class);
+            when(sessionManager.getSession(userIdStr)).thenReturn(Mono.just(mockSession));
 
             StepVerifier.create(credentialIssuanceServiceFacade.execute(processId, authorizationToken, qrContent)).verifyComplete();
         }
@@ -150,7 +160,7 @@ class Oid4vciWorkflowImplTest {
             List<CredentialResponse.Credentials> credentialList = List.of(
                     new CredentialResponse.Credentials("ey1234")
             );
-            CredentialResponse credentialResponse = CredentialResponse.builder().credentials(credentialList).build();
+            CredentialResponse credentialResponse = CredentialResponse.builder().credentials(credentialList).notificationId("").build();
             CredentialResponseWithStatus credentialResponseWithStatus = CredentialResponseWithStatus.builder().statusCode(HttpStatus.OK).credentialResponse(credentialResponse).build();
 
             String did = "did:ebsi:123";
@@ -177,6 +187,8 @@ class Oid4vciWorkflowImplTest {
             when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, "jwt_vc_json", List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, "jwt_vc_json")).thenReturn(Mono.just(credentialId));
+            WebSocketSession mockSession = mock(WebSocketSession.class);
+            when(sessionManager.getSession(userIdStr)).thenReturn(Mono.just(mockSession));
 
             StepVerifier.create(credentialIssuanceServiceFacade.execute(processId, authorizationToken, qrContent)).verifyComplete();
         }
@@ -208,7 +220,10 @@ class Oid4vciWorkflowImplTest {
                     .build();
 
             TokenResponse tokenResponse = TokenResponse.builder().build();
-            CredentialResponse credentialResponse = CredentialResponse.builder().build();
+            CredentialResponse credentialResponse = CredentialResponse.builder()
+                    .notificationId("notif-1")
+                    .credentials(List.of(new CredentialResponse.Credentials("unsigned_credential")))
+                    .build();
             CredentialResponseWithStatus credentialResponseWithStatus = CredentialResponseWithStatus.builder().statusCode(HttpStatus.OK).credentialResponse(credentialResponse).build();
             String did = "did:ebsi:123";
             String json = "{\"credential_request\":\"example\"}";
@@ -234,6 +249,17 @@ class Oid4vciWorkflowImplTest {
             when(oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, "jwt_vc_json", List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, "jwt_vc_json")).thenReturn(Mono.just(credentialId));
+
+            WebSocketSession mockSession = mock(WebSocketSession.class);
+            when(sessionManager.getSession(userIdStr)).thenReturn(Mono.just(mockSession));
+            doNothing().when(notificationRequestWebSocketHandler)
+                    .sendNotificationDecisionRequest(eq(mockSession), any(WebSocketServerNotificationMessage.class));
+            when(notificationRequestWebSocketHandler.getDecisionResponses(userIdStr))
+                    .thenReturn(Flux.just("ACCEPTED"));
+            when(notificationClientService.notifyIssuer(
+                    anyString(), anyString(), anyString(),
+                    any(), anyString(), any(CredentialIssuerMetadata.class)
+            )).thenReturn(Mono.empty());
 
             StepVerifier.create(credentialIssuanceServiceFacade.execute(processId, authorizationToken, qrContent)).verifyComplete();
         }
