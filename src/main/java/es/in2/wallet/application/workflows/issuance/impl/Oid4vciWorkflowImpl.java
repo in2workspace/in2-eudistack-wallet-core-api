@@ -215,6 +215,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                 processId, credentialId);
                         return Mono.empty();
                     }
+                    long expiresAt = System.currentTimeMillis() + timeoutSeconds * 1000;
 
                     return sessionManager.getSession(userId)
                             .switchIfEmpty(Mono.error(new RuntimeException("WebSocket session not found for userId=" + userId)))
@@ -226,11 +227,14 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                                             .decision(true)
                                                             .credentialPreview(preview)
                                                             .timeout(timeoutSeconds)
+                                                            .expiresAt(expiresAt)
                                                             .build()
                                             ))
                                             .then(notificationRequestWebSocketHandler.getDecisionResponses(userId)
                                                     .next()
                                                     .timeout(java.time.Duration.ofSeconds(timeoutSeconds))
+                                                    .onErrorReturn("FAILURE")
+                                                    .defaultIfEmpty("FAILURE")
                                             )
                             )
                             .flatMap(decision -> {

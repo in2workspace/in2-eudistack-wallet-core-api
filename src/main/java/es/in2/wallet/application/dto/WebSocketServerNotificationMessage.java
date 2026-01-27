@@ -7,7 +7,8 @@ import lombok.Builder;
 public record WebSocketServerNotificationMessage(
         @JsonProperty("decision") Boolean decision,
         @JsonProperty("credentialPreview") CredentialPreview credentialPreview,
-        @JsonProperty("timeout") long timeout
+        @JsonProperty("timeout") long timeout,
+        @JsonProperty("expiresAt") long expiresAt
 ) {
 }
 
