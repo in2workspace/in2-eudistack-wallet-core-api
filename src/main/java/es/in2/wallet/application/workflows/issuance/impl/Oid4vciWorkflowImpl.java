@@ -155,7 +155,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
             CredentialIssuerMetadata credentialIssuerMetadata,
             String format
     ) {
-        final long timeoutSeconds = 65;
+        final long timeoutSeconds = 80;
 
         return getUserIdFromToken(authorizationToken)
                 // Store the user
@@ -234,43 +234,34 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                             )
                             )
                             .flatMap(decision -> {
-                                boolean accepted = "ACCEPTED".equalsIgnoreCase(decision);
-
-                                if (accepted) {
-                                    log.info("ProcessID: {} - User ACCEPTED credentialId={}", processId, credentialId);
+                                System.out.println(decision);
+                                if ("ACCEPTED".equalsIgnoreCase(decision)) {
                                     return notificationClientService.notifyIssuer(
-                                            processId,
-                                            tokenResponse.accessToken(),
-                                            notificationId,
+                                            processId, tokenResponse.accessToken(), notificationId,
                                             NotificationEvent.CREDENTIAL_ACCEPTED,
                                             "Credential accepted by user and successfully stored in wallet",
                                             credentialIssuerMetadata
                                     );
                                 }
 
-                                log.info("ProcessID: {} - User REJECTED credentialId={}", processId, credentialId);
+                                if ("REJECTED".equalsIgnoreCase(decision)) {
+                                    return credentialService.deleteCredential(processId, credentialId, userId)
+                                            .onErrorResume(e -> {
+                                                log.warn("ProcessID: {} - Failed to delete credentialId={} on reject: {}",
+                                                        processId, credentialId, e.getMessage(), e);
+                                                return Mono.empty();
+                                            })
+                                            .then(notificationClientService.notifyIssuer(
+                                                    processId, tokenResponse.accessToken(), notificationId,
+                                                    NotificationEvent.CREDENTIAL_DELETED,
+                                                    "User rejected credential",
+                                                    credentialIssuerMetadata
+                                            ));
+                                }
 
-                                return credentialService.deleteCredential(processId, credentialId, userId)
-                                        .onErrorResume(e -> {
-                                            log.warn("ProcessID: {} - Failed to delete credentialId={} on reject: {}",
-                                                    processId, credentialId, e.getMessage(), e);
-                                            return Mono.empty();
-                                        })
-                                        .then(notificationClientService.notifyIssuer(
-                                                processId,
-                                                tokenResponse.accessToken(),
-                                                notificationId,
-                                                NotificationEvent.CREDENTIAL_DELETED,
-                                                "User rejected credential",
-                                                credentialIssuerMetadata
-                                        ));
-                            })
-                            .onErrorResume(Throwable.class, e -> {
-                                log.warn("ProcessID: {} - Timeout waiting user decision. credentialId={}", processId, credentialId);
+                                log.warn("ProcessID: {} - Decision timeout/failure. credentialId={}", processId, credentialId);
                                 return notificationClientService.notifyIssuer(
-                                        processId,
-                                        tokenResponse.accessToken(),
-                                        notificationId,
+                                        processId, tokenResponse.accessToken(), notificationId,
                                         NotificationEvent.CREDENTIAL_FAILURE,
                                         "Timeout waiting for user decision",
                                         credentialIssuerMetadata
@@ -285,9 +276,6 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
     }
 
     private Mono<CredentialPreview> buildCredentialPreview(CredentialResponse credentialResponse,CredentialIssuerMetadata issuerMetadata) {
-        System.out.println("XIVATO1");
-        System.out.println(credentialResponse.credentials());
-        System.out.println(issuerMetadata);
         return Mono.justOrEmpty(credentialResponse)
                 .flatMap(cr -> Mono.justOrEmpty(cr.credentials()))
                 .filter(list -> !list.isEmpty())
@@ -295,7 +283,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                 .map(CredentialResponse.Credentials::credential)
                 .filter(cred -> cred != null && !cred.isBlank())
                 .flatMap(this::decodeVc)
-                .map(vcJson -> mapVcToPreview(vcJson, issuerMetadata))
+                .map(this::mapVcToPreview)
                 .onErrorResume(e -> {
                     log.warn("Credential preview generation failed: {}", e.getMessage());
                     return Mono.empty();
@@ -304,15 +292,12 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
     private Mono<JsonNode> decodeVc(String credential) {
         return Mono.defer(() -> {
-            System.out.println("XIVATO2");
             try {
                 // JWT VC
                 if (credential.chars().filter(c -> c == '.').count() == 2) {
                     String payloadB64 = credential.split("\\.")[1];
                     byte[] decoded = Base64.getUrlDecoder().decode(payloadB64);
                     JsonNode payload = objectMapper.readTree(decoded);
-                    System.out.println("XIVATO3");
-
                     return Mono.just(payload.has("vc") ? payload.get("vc") : payload);
                 }
 
@@ -325,12 +310,8 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
         });
     }
 
-    private CredentialPreview mapVcToPreview(JsonNode vcJson, CredentialIssuerMetadata md) {
-        System.out.println("XIVATO5");
-        System.out.println(vcJson.toPrettyString());
-
+    private CredentialPreview mapVcToPreview(JsonNode vcJson) {
         JsonNode cs = vcJson.path("credentialSubject");
-        System.out.println(cs.toPrettyString());
         String issuer = cs.path("issuer").path("commonName").asText(null);
 
         if (issuer == null || issuer.isBlank()) {

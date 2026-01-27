@@ -99,9 +99,7 @@ public class NotificationRequestWebSocketHandler implements WebSocketHandler {
     }
 
     public Flux<String> getDecisionResponses(String userId) {
-        return decisionSinks
-                .computeIfAbsent(userId, id -> Sinks.many().multicast().directBestEffort())
-                .asFlux();
+        return decisionSinks.getOrDefault(userId, Sinks.many().multicast().directBestEffort()).asFlux();
     }
 
     private void cleanUpResources(WebSocketSession session) {
