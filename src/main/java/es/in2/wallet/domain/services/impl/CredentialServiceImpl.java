@@ -41,9 +41,6 @@ public class CredentialServiceImpl implements CredentialService {
     private final CredentialRepository credentialRepository;
     private final ObjectMapper objectMapper;
 
-    private static final String DID_PATH = "/credentialSubject/id";
-    private static final String LEAR_LEGACY_DID_PATH = "/credentialSubject/mandate/mandatee/id";
-
     // ---------------------------------------------------------------------
     // Save Credential
     // ---------------------------------------------------------------------
@@ -382,15 +379,15 @@ public class CredentialServiceImpl implements CredentialService {
 
     private JsonNode resolveDidNode(JsonNode vcNode, boolean isLear) {
         if (!isLear) {
-            return vcNode.at(DID_PATH);
+            return vcNode.at("/credentialSubject/id");
         }
 
-        JsonNode legacy = vcNode.at(LEAR_LEGACY_DID_PATH);
+        JsonNode legacy = vcNode.at("/credentialSubject/mandate/mandatee/id");
         if (legacy != null && legacy.isTextual() && !legacy.asText().isBlank()) {
             return legacy;
         }
 
-        return vcNode.at(DID_PATH);
+        return vcNode.at("/credentialSubject/id");
     }
 
     // ---------------------------------------------------------------------
