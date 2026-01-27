@@ -210,11 +210,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                     String userId = tuple.getT1();
                     String credentialId = tuple.getT3();
                     String notificationId = credentialResponseWithStatus.credentialResponse().notificationId();
-                    if (notificationId == null || notificationId.isBlank()) {
-                        log.warn("ProcessID: {} - No notificationId in credentialResponse. Skipping issuer notification. credentialId={}",
-                                processId, credentialId);
-                        return Mono.empty();
-                    }
+
                     long expiresAt = System.currentTimeMillis() + timeoutSeconds * 1000;
 
                     return sessionManager.getSession(userId)
@@ -230,54 +226,76 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                                             .expiresAt(expiresAt)
                                                             .build()
                                             ))
-                                            .then(notificationRequestWebSocketHandler.getDecisionResponses(userId)
-                                                    .next()
-                                                    .timeout(java.time.Duration.ofSeconds(timeoutSeconds))
-                                                    .onErrorReturn("FAILURE")
-                                                    .defaultIfEmpty("FAILURE")
-                                            )
+                                            .thenReturn(tuple)
                             )
-                            .flatMap(decision -> {
-                                System.out.println(decision);
-                                if ("ACCEPTED".equalsIgnoreCase(decision)) {
-                                    return notificationClientService.notifyIssuer(
-                                            processId, tokenResponse.accessToken(), notificationId,
-                                            NotificationEvent.CREDENTIAL_ACCEPTED,
-                                            "Credential accepted by user and successfully stored in wallet",
-                                            credentialIssuerMetadata
-                                    );
-                                }
-
-                                if ("REJECTED".equalsIgnoreCase(decision)) {
-                                    return credentialService.deleteCredential(processId, credentialId, userId)
-                                            .onErrorResume(e -> {
-                                                log.warn("ProcessID: {} - Failed to delete credentialId={} on reject: {}",
-                                                        processId, credentialId, e.getMessage(), e);
-                                                return Mono.empty();
-                                            })
-                                            .then(notificationClientService.notifyIssuer(
-                                                    processId, tokenResponse.accessToken(), notificationId,
-                                                    NotificationEvent.CREDENTIAL_DELETED,
-                                                    "User rejected credential",
-                                                    credentialIssuerMetadata
-                                            ));
-                                }
-
-                                log.warn("ProcessID: {} - Decision timeout/failure. credentialId={}", processId, credentialId);
-                                return notificationClientService.notifyIssuer(
-                                        processId, tokenResponse.accessToken(), notificationId,
-                                        NotificationEvent.CREDENTIAL_FAILURE,
-                                        "Timeout waiting for user decision",
-                                        credentialIssuerMetadata
+                            .doOnNext(t -> {
+                                startDecisionFlowDetached(
+                                        processId,
+                                        userId,
+                                        credentialId,
+                                        notificationId,
+                                        tokenResponse.accessToken(),
+                                        credentialIssuerMetadata,
+                                        timeoutSeconds
                                 );
-                            });
-                })
-                .doOnError(error ->
-                        log.error("ProcessID: {} - handleCredentialResponse error: {}",
-                                processId, error.getMessage(), error)
-                )
-                .then();
+                            })
+                            .then();
+                });
     }
+
+    private void startDecisionFlowDetached(String processId,String userId,String credentialId,String notificationId,String issuerAccessToken,CredentialIssuerMetadata credentialIssuerMetadata,long timeoutSeconds) {
+        if (notificationId == null || notificationId.isBlank()) {
+            log.warn("ProcessID: {} - No notificationId. Skipping decision flow. credentialId={}", processId, credentialId);
+            return;
+        }
+        notificationRequestWebSocketHandler.getDecisionResponses(userId)
+                .next()
+                .timeout(java.time.Duration.ofSeconds(timeoutSeconds))
+                .onErrorReturn("FAILURE")
+                .defaultIfEmpty("FAILURE")
+                .flatMap(decision -> {
+                    if ("ACCEPTED".equalsIgnoreCase(decision)) {
+                        return notificationClientService.notifyIssuer(
+                                processId, issuerAccessToken, notificationId,
+                                NotificationEvent.CREDENTIAL_ACCEPTED,
+                                "Credential accepted by user and successfully stored in wallet",
+                                credentialIssuerMetadata
+                        );
+                    }
+
+                    if ("REJECTED".equalsIgnoreCase(decision)) {
+                        return credentialService.deleteCredential(processId, credentialId, userId)
+                                .onErrorResume(e -> {
+                                    log.warn("ProcessID: {} - Failed to delete credentialId={} on reject: {}",
+                                            processId, credentialId, e.getMessage(), e);
+                                    return Mono.empty();
+                                })
+                                .then(notificationClientService.notifyIssuer(
+                                        processId, issuerAccessToken, notificationId,
+                                        NotificationEvent.CREDENTIAL_DELETED,
+                                        "User rejected credential",
+                                        credentialIssuerMetadata
+                                ));
+                    }
+
+                    log.warn("ProcessID: {} - Decision timeout/failure. credentialId={}", processId, credentialId);
+                    return credentialService.deleteCredential(processId, credentialId, userId)
+                            .onErrorResume(e -> {
+                                log.warn("ProcessID: {} - Failed to delete credentialId={} on failure: {}",
+                                        processId, credentialId, e.getMessage(), e);
+                                return Mono.empty();
+                            })
+                            .then(notificationClientService.notifyIssuer(
+                                    processId, issuerAccessToken, notificationId,
+                                    NotificationEvent.CREDENTIAL_FAILURE,
+                                    "Timeout waiting for user decision",
+                                    credentialIssuerMetadata
+                            ));
+                })
+                .doOnError(e -> log.error("ProcessID: {} - Detached decision flow error: {}", processId, e.getMessage(), e))
+                .subscribe();
+    }
+
 
     private Mono<CredentialPreview> buildCredentialPreview(CredentialResponse credentialResponse,CredentialIssuerMetadata issuerMetadata) {
         return Mono.justOrEmpty(credentialResponse)
