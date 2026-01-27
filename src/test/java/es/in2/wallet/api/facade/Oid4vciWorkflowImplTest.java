@@ -265,6 +265,334 @@ class Oid4vciWorkflowImplTest {
         }
     }
 
+    @Test
+    void execute_shouldGetSession_sendDecisionRequest_andDetachedAccepted_shouldNotifyIssuer() throws Exception {
+        try (MockedStatic<ApplicationUtils> ignored = Mockito.mockStatic(ApplicationUtils.class)) {
+
+            String processId = "processId";
+            String authorizationToken = "authToken";
+            String qrContent = "qrContent";
+
+            String userIdStr = UUID.randomUUID().toString();
+            UUID userUuid = UUID.fromString(userIdStr);
+            String credentialId = "cred-1";
+
+            CredentialOffer.Grant grant = CredentialOffer.Grant.builder()
+                    .preAuthorizedCodeGrant(CredentialOffer.Grant.PreAuthorizedCodeGrant.builder().build())
+                    .build();
+
+            CredentialOffer credentialOffer = CredentialOffer.builder()
+                    .grant(grant)
+                    .credentialConfigurationsIds(Set.of("LEARCredential"))
+                    .build();
+
+            AuthorisationServerMetadata authorisationServerMetadata = AuthorisationServerMetadata.builder().build();
+
+            CredentialIssuerMetadata credentialIssuerMetadata = CredentialIssuerMetadata.builder()
+                    .credentialIssuer("issuer")
+                    .deferredCredentialEndpoint("https://issuer.example/deferred")
+                    .notificationEndpoint("https://issuer.example/notify")
+                    .credentialsConfigurationsSupported(Map.of(
+                            "LEARCredential",
+                            CredentialIssuerMetadata.CredentialsConfigurationsSupported.builder()
+                                    .format(JWT_VC)
+                                    .cryptographicBindingMethodsSupported(List.of("did:key"))
+                                    .build()
+                    ))
+                    .build();
+
+            TokenResponse tokenResponse = TokenResponse.builder().accessToken("issuer-access-token").build();
+            String vcJson = """
+            {
+              "issuer": "did:issuer:123",
+              "validUntil": "2030-12-31",
+              "credentialSubject": {
+                "mandate": {
+                  "mandatee": { "firstName": "John", "lastName": "Doe" },
+                  "mandator": { "organization": "ACME" }
+                }
+              }
+            }
+            """;
+
+            CredentialResponse credentialResponse = CredentialResponse.builder()
+                    .notificationId("notif-1")
+                    .transactionId("tx-1")
+                    .credentials(List.of(new CredentialResponse.Credentials(vcJson)))
+                    .build();
+
+            CredentialResponseWithStatus crws = CredentialResponseWithStatus.builder()
+                    .statusCode(HttpStatus.OK)
+                    .credentialResponse(credentialResponse)
+                    .build();
+
+            String did = "did:key:123";
+            JsonNode jsonNode = new ObjectMapper().readTree("{\"credential_request\":\"example\"}");
+            String jwtProof = "jwt-proof";
+
+            WebSocketSession mockSession = mock(WebSocketSession.class);
+
+            when(getUserIdFromToken(authorizationToken)).thenReturn(Mono.just(userIdStr));
+            when(credentialOfferService.getCredentialOfferFromCredentialOfferUri(processId, qrContent))
+                    .thenReturn(Mono.just(credentialOffer));
+            when(credentialIssuerMetadataService.getCredentialIssuerMetadataFromCredentialOffer(processId, credentialOffer))
+                    .thenReturn(Mono.just(credentialIssuerMetadata));
+            when(authorisationServerMetadataService.getAuthorizationServerMetadataFromCredentialIssuerMetadata(processId, credentialIssuerMetadata))
+                    .thenReturn(Mono.just(authorisationServerMetadata));
+            when(didKeyGeneratorService.generateDidKey()).thenReturn(Mono.just(did));
+            when(preAuthorizedService.getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken))
+                    .thenReturn(Mono.just(tokenResponse));
+
+            when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did))
+                    .thenReturn(Mono.just(jsonNode));
+            when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof"))
+                    .thenReturn(Mono.just(jwtProof));
+
+            when(oid4vciCredentialService.getCredential(
+                    eq(jwtProof),
+                    eq(tokenResponse),
+                    eq(credentialIssuerMetadata),
+                    eq(JWT_VC),
+                    eq("LEARCredential")
+            )).thenReturn(Mono.just(crws));
+
+            when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
+            when(credentialService.saveCredential(processId, userUuid, credentialResponse, JWT_VC))
+                    .thenReturn(Mono.just(credentialId));
+
+            when(sessionManager.getSession(userIdStr)).thenReturn(Mono.just(mockSession));
+
+            when(notificationRequestWebSocketHandler.getDecisionResponses(userIdStr))
+                    .thenReturn(Flux.just("ACCEPTED"));
+
+            doNothing().when(notificationRequestWebSocketHandler)
+                    .sendNotificationDecisionRequest(eq(mockSession), any(WebSocketServerNotificationMessage.class));
+
+            when(notificationClientService.notifyIssuer(
+                    anyString(), anyString(), anyString(),
+                    any(), anyString(), any(CredentialIssuerMetadata.class)
+            )).thenReturn(Mono.empty());
+
+
+            StepVerifier.create(credentialIssuanceServiceFacade.execute(processId, authorizationToken, qrContent))
+                    .verifyComplete();
+
+            verify(sessionManager).getSession(userIdStr);
+            verify(notificationRequestWebSocketHandler)
+                    .sendNotificationDecisionRequest(eq(mockSession), any(WebSocketServerNotificationMessage.class));
+
+            verify(notificationClientService).notifyIssuer(
+                    eq(processId),
+                    eq(tokenResponse.accessToken()),
+                    eq("notif-1"),
+                    eq(NotificationEvent.CREDENTIAL_ACCEPTED),
+                    anyString(),
+                    eq(credentialIssuerMetadata)
+            );
+        }
+    }
+    @Test
+    void execute_whenDecisionRejected_shouldDeleteCredential_andNotifyDeleted() throws Exception {
+        try (MockedStatic<ApplicationUtils> ignored = Mockito.mockStatic(ApplicationUtils.class)) {
+            String processId = "processId";
+            String authorizationToken = "authToken";
+            String qrContent = "qrContent";
+
+            String userIdStr = UUID.randomUUID().toString();
+            UUID userUuid = UUID.fromString(userIdStr);
+            String credentialId = "cred-1";
+
+            CredentialOffer.Grant grant = CredentialOffer.Grant.builder()
+                    .preAuthorizedCodeGrant(CredentialOffer.Grant.PreAuthorizedCodeGrant.builder().build())
+                    .build();
+
+            CredentialOffer credentialOffer = CredentialOffer.builder()
+                    .grant(grant)
+                    .credentialConfigurationsIds(Set.of("LEARCredential"))
+                    .build();
+
+            AuthorisationServerMetadata authorisationServerMetadata = AuthorisationServerMetadata.builder().build();
+
+            CredentialIssuerMetadata credentialIssuerMetadata = CredentialIssuerMetadata.builder()
+                    .credentialIssuer("issuer")
+                    .deferredCredentialEndpoint("https://issuer.example/deferred")
+                    .notificationEndpoint("https://issuer.example/notify")
+                    .credentialsConfigurationsSupported(Map.of(
+                            "LEARCredential",
+                            CredentialIssuerMetadata.CredentialsConfigurationsSupported.builder()
+                                    .format(JWT_VC)
+                                    .cryptographicBindingMethodsSupported(List.of("did:key"))
+                                    .build()
+                    ))
+                    .build();
+
+            TokenResponse tokenResponse = TokenResponse.builder().accessToken("issuer-access-token").build();
+
+            String vcJson = """
+            { "issuer":"did:issuer:123", "credentialSubject": { "mandate": { "mandatee": { "firstName":"A" } } } }
+            """;
+
+            CredentialResponse credentialResponse = CredentialResponse.builder()
+                    .notificationId("notif-1")
+                    .transactionId("tx-1")
+                    .credentials(List.of(new CredentialResponse.Credentials(vcJson)))
+                    .build();
+
+            CredentialResponseWithStatus crws = CredentialResponseWithStatus.builder()
+                    .statusCode(HttpStatus.OK)
+                    .credentialResponse(credentialResponse)
+                    .build();
+
+            String did = "did:key:123";
+            JsonNode jsonNode = new ObjectMapper().readTree("{\"credential_request\":\"example\"}");
+            String jwtProof = "jwt-proof";
+
+            WebSocketSession mockSession = mock(WebSocketSession.class);
+
+            when(getUserIdFromToken(authorizationToken)).thenReturn(Mono.just(userIdStr));
+            when(credentialOfferService.getCredentialOfferFromCredentialOfferUri(processId, qrContent)).thenReturn(Mono.just(credentialOffer));
+            when(credentialIssuerMetadataService.getCredentialIssuerMetadataFromCredentialOffer(processId, credentialOffer)).thenReturn(Mono.just(credentialIssuerMetadata));
+            when(authorisationServerMetadataService.getAuthorizationServerMetadataFromCredentialIssuerMetadata(processId, credentialIssuerMetadata)).thenReturn(Mono.just(authorisationServerMetadata));
+            when(didKeyGeneratorService.generateDidKey()).thenReturn(Mono.just(did));
+            when(preAuthorizedService.getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken)).thenReturn(Mono.just(tokenResponse));
+            when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
+            when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
+
+            when(oid4vciCredentialService.getCredential(eq(jwtProof), eq(tokenResponse), eq(credentialIssuerMetadata), eq(JWT_VC), eq("LEARCredential")))
+                    .thenReturn(Mono.just(crws));
+
+            when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
+            when(credentialService.saveCredential(processId, userUuid, credentialResponse, JWT_VC)).thenReturn(Mono.just(credentialId));
+
+            when(sessionManager.getSession(userIdStr)).thenReturn(Mono.just(mockSession));
+
+            doNothing().when(notificationRequestWebSocketHandler)
+                    .sendNotificationDecisionRequest(eq(mockSession), any(WebSocketServerNotificationMessage.class));
+
+            when(notificationRequestWebSocketHandler.getDecisionResponses(userIdStr))
+                    .thenReturn(Flux.just("REJECTED"));
+
+            when(credentialService.deleteCredential(processId, credentialId, userIdStr))
+                    .thenReturn(Mono.empty());
+
+            when(notificationClientService.notifyIssuer(anyString(), anyString(), anyString(), any(), anyString(), any()))
+                    .thenReturn(Mono.empty());
+
+            StepVerifier.create(credentialIssuanceServiceFacade.execute(processId, authorizationToken, qrContent))
+                    .verifyComplete();
+
+            verify(credentialService).deleteCredential(processId, credentialId, userIdStr);
+
+            verify(notificationClientService).notifyIssuer(
+                    eq(processId),
+                    eq(tokenResponse.accessToken()),
+                    eq("notif-1"),
+                    eq(NotificationEvent.CREDENTIAL_DELETED),
+                    anyString(),
+                    eq(credentialIssuerMetadata)
+            );
+        }
+    }
+
+    @Test
+    void execute_whenDecisionFailure_shouldDeleteCredential_andNotifyFailure() throws Exception {
+        try (MockedStatic<ApplicationUtils> ignored = Mockito.mockStatic(ApplicationUtils.class)) {
+
+            String processId = "processId";
+            String authorizationToken = "authToken";
+            String qrContent = "qrContent";
+
+            String userIdStr = UUID.randomUUID().toString();
+            UUID userUuid = UUID.fromString(userIdStr);
+            String credentialId = "cred-1";
+
+            CredentialOffer.Grant grant = CredentialOffer.Grant.builder()
+                    .preAuthorizedCodeGrant(CredentialOffer.Grant.PreAuthorizedCodeGrant.builder().build())
+                    .build();
+
+            CredentialOffer credentialOffer = CredentialOffer.builder()
+                    .grant(grant)
+                    .credentialConfigurationsIds(Set.of("LEARCredential"))
+                    .build();
+
+            AuthorisationServerMetadata authorisationServerMetadata = AuthorisationServerMetadata.builder().build();
+
+            CredentialIssuerMetadata credentialIssuerMetadata = CredentialIssuerMetadata.builder()
+                    .credentialIssuer("issuer")
+                    .notificationEndpoint("https://issuer.example/notify")
+                    .credentialsConfigurationsSupported(Map.of(
+                            "LEARCredential",
+                            CredentialIssuerMetadata.CredentialsConfigurationsSupported.builder()
+                                    .format(JWT_VC)
+                                    .cryptographicBindingMethodsSupported(List.of("did:key"))
+                                    .build()
+                    ))
+                    .build();
+
+            TokenResponse tokenResponse = TokenResponse.builder().accessToken("issuer-access-token").build();
+
+            String vcJson = "{ \"issuer\":\"did:issuer:123\", \"credentialSubject\": {\"mandate\":{}} }";
+
+            CredentialResponse credentialResponse = CredentialResponse.builder()
+                    .notificationId("notif-1")
+                    .transactionId("tx-1")
+                    .credentials(List.of(new CredentialResponse.Credentials(vcJson)))
+                    .build();
+
+            CredentialResponseWithStatus crws = CredentialResponseWithStatus.builder()
+                    .statusCode(HttpStatus.OK)
+                    .credentialResponse(credentialResponse)
+                    .build();
+
+            String did = "did:key:123";
+            JsonNode jsonNode = new ObjectMapper().readTree("{\"credential_request\":\"example\"}");
+            String jwtProof = "jwt-proof";
+
+            WebSocketSession mockSession = mock(WebSocketSession.class);
+
+            when(getUserIdFromToken(authorizationToken)).thenReturn(Mono.just(userIdStr));
+            when(credentialOfferService.getCredentialOfferFromCredentialOfferUri(processId, qrContent)).thenReturn(Mono.just(credentialOffer));
+            when(credentialIssuerMetadataService.getCredentialIssuerMetadataFromCredentialOffer(processId, credentialOffer)).thenReturn(Mono.just(credentialIssuerMetadata));
+            when(authorisationServerMetadataService.getAuthorizationServerMetadataFromCredentialIssuerMetadata(processId, credentialIssuerMetadata)).thenReturn(Mono.just(authorisationServerMetadata));
+            when(didKeyGeneratorService.generateDidKey()).thenReturn(Mono.just(did));
+            when(preAuthorizedService.getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken)).thenReturn(Mono.just(tokenResponse));
+            when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
+            when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
+
+            when(oid4vciCredentialService.getCredential(eq(jwtProof), eq(tokenResponse), eq(credentialIssuerMetadata), eq(JWT_VC), eq("LEARCredential")))
+                    .thenReturn(Mono.just(crws));
+
+            when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
+            when(credentialService.saveCredential(processId, userUuid, credentialResponse, JWT_VC)).thenReturn(Mono.just(credentialId));
+
+            when(sessionManager.getSession(userIdStr)).thenReturn(Mono.just(mockSession));
+            doNothing().when(notificationRequestWebSocketHandler)
+                    .sendNotificationDecisionRequest(eq(mockSession), any(WebSocketServerNotificationMessage.class));
+
+            when(notificationRequestWebSocketHandler.getDecisionResponses(userIdStr))
+                    .thenReturn(Flux.just("FAILURE"));
+
+            when(credentialService.deleteCredential(processId, credentialId, userIdStr))
+                    .thenReturn(Mono.empty());
+
+            when(notificationClientService.notifyIssuer(anyString(), anyString(), anyString(), any(), anyString(), any()))
+                    .thenReturn(Mono.empty());
+
+            StepVerifier.create(credentialIssuanceServiceFacade.execute(processId, authorizationToken, qrContent))
+                    .verifyComplete();
+
+            verify(credentialService).deleteCredential(processId, credentialId, userIdStr);
+
+            verify(notificationClientService).notifyIssuer(
+                    eq(processId),
+                    eq(tokenResponse.accessToken()),
+                    eq("notif-1"),
+                    eq(NotificationEvent.CREDENTIAL_FAILURE),
+                    anyString(),
+                    eq(credentialIssuerMetadata)
+            );
+        }
+    }
 
 }
 
