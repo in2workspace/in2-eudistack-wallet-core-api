@@ -69,7 +69,7 @@ class CredentialServiceImplTest {
         when(credentialRepository.save(captor.capture()))
                 .thenReturn(Mono.just(savedEntity));
 
-        when(objectMapper.readTree(credential)).thenReturn(getJsonNodeCredentialLearCredentialEmployee());
+        when(objectMapper.readTree(credential)).thenReturn(CredentialJsonNodeObjectMother.credentialLearEmployeeMandateDid());
 
         // WHEN
         Mono<String> result = credentialRepositoryService.saveCredential(processId, userId, response, format);
@@ -261,7 +261,7 @@ class CredentialServiceImplTest {
         when(credentialRepository.findByCredentialId(cred))
                 .thenReturn(Mono.just(existing));
 
-        when(objectMapper.readTree(credential)).thenReturn(getJsonNodeCredential());
+        when(objectMapper.readTree(credential)).thenReturn(CredentialJsonNodeObjectMother.basicCredentialSubjectDid());
 
         Mono<String> result =
                 credentialRepositoryService.extractDidFromCredential(processId,
@@ -292,7 +292,7 @@ class CredentialServiceImplTest {
                 .build();
 
         when(credentialRepository.findByCredentialId(cred)).thenReturn(Mono.just(existing));
-        when(objectMapper.readTree(credential)).thenReturn(getJsonNodeCredentialLearCredentialEmployee());
+        when(objectMapper.readTree(credential)).thenReturn(CredentialJsonNodeObjectMother.credentialLearEmployeeMandateDid());
 
         Mono<String> result =
                 credentialRepositoryService.extractDidFromCredential(processId,
@@ -323,7 +323,7 @@ class CredentialServiceImplTest {
                 .build();
 
         when(credentialRepository.findByCredentialId(cred)).thenReturn(Mono.just(existing));
-        when(objectMapper.readTree(credential)).thenReturn(getJsonNodeCredentialLearCredentialEmployee2());
+        when(objectMapper.readTree(credential)).thenReturn(CredentialJsonNodeObjectMother.credentialLearEmployeeSubjectDid());
 
         Mono<String> result =
                 credentialRepositoryService.extractDidFromCredential(processId,
@@ -363,8 +363,8 @@ class CredentialServiceImplTest {
                 .jsonVc(credential2)
                 .build();
 
-        when(objectMapper.readTree(credential1)).thenReturn(getJsonNodeCredentialLearCredentialEmployee());
-        when(objectMapper.readTree(credential2)).thenReturn(getJsonNodeCredential());
+        when(objectMapper.readTree(credential1)).thenReturn(CredentialJsonNodeObjectMother.credentialLearEmployeeMandateDid());
+        when(objectMapper.readTree(credential2)).thenReturn(CredentialJsonNodeObjectMother.basicCredentialSubjectDid());
 
         when(credentialRepository.findAllByUserId(userUuid))
                 .thenReturn(Flux.just(c1, c2));
@@ -529,7 +529,7 @@ class CredentialServiceImplTest {
 
         when(credentialRepository.findAllByUserId(userUuid))
                 .thenReturn(Flux.just(credential));
-        when(objectMapper.readTree(jsonVc)).thenReturn(getJsonNodeCredentialLearCredentialEmployee());
+        when(objectMapper.readTree(jsonVc)).thenReturn(CredentialJsonNodeObjectMother.credentialLearEmployeeMandateDid());
 
         Mono<List<VerifiableCredential>> result = credentialRepositoryService
                 .getCredentialsByUserIdAndType(processId, userId, requiredType);
@@ -674,76 +674,6 @@ class CredentialServiceImplTest {
 
         JsonNode result = credentialRepositoryService.getCredentialJsonVc(credential);
         assertEquals("credential-123", result.get("id").asText());
-    }
-
-
-
-
-    private JsonNode getJsonNodeCredentialLearCredentialEmployee() throws JsonProcessingException {
-        String json = """
-            {
-              "@context": ["https://www.w3.org/2018/credentials/v1", "https://example.com/context/extra"],
-              "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
-              "type": ["VerifiableCredential", "LEARCredentialEmployee"],
-              "issuer": {
-                "id": "did:example:issuer"
-              },
-              "validUntil": "2026-12-31T23:59:59Z",
-              "validFrom": "2023-01-01T00:00:00Z",
-              "credentialSubject": {
-                "name": "Credential Name",
-                "description": "Credential Description",
-                "mandate": {
-                  "mandatee": {
-                    "id": "did:example:987"
-                  }
-                }
-              }
-            }
-            """;
-        ObjectMapper objectMapper2 = new ObjectMapper();
-        return objectMapper2.readTree(json);
-    }
-
-
-    private JsonNode getJsonNodeCredentialLearCredentialEmployee2() throws JsonProcessingException {
-        String json = """
-            {
-              "@context": ["https://www.w3.org/2018/credentials/v1", "https://example.com/context/extra"],
-              "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
-              "type": ["VerifiableCredential", "LEARCredentialEmployee"],
-              "issuer": {
-                "id": "did:example:issuer"
-              },
-              "validUntil": "2026-12-31T23:59:59Z",
-              "validFrom": "2023-01-01T00:00:00Z",
-              "credentialSubject": {
-                "name": "Credential Name",
-                "description": "Credential Description",
-                "id": "did:example:987"
-              }
-            }
-            """;
-        ObjectMapper objectMapper2 = new ObjectMapper();
-        return objectMapper2.readTree(json);
-    }
-
-    private JsonNode getJsonNodeCredential() throws JsonProcessingException {
-        String json = """
-                {
-                    "id": "8c7a6213-544d-450d-8e3d-b41fa9009198",
-                    "type": [
-                        "VerifiableCredential",
-                        "AnotherType"
-                    ],
-                    "credentialSubject" : {
-                        "id" : "did:example:basic"
-                    },
-                    "validUntil": "2026-12-31T23:59:59Z"
-                }
-                """;
-        ObjectMapper objectMapper2 = new ObjectMapper();
-        return objectMapper2.readTree(json);
     }
 }
 

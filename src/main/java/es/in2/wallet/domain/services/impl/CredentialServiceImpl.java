@@ -41,6 +41,9 @@ public class CredentialServiceImpl implements CredentialService {
     private final CredentialRepository credentialRepository;
     private final ObjectMapper objectMapper;
 
+    private static final String DID_PATH = "/credentialSubject/id";
+    private static final String LEAR_LEGACY_DID_PATH = "/credentialSubject/mandate/mandatee/id";
+
     // ---------------------------------------------------------------------
     // Save Credential
     // ---------------------------------------------------------------------
@@ -369,23 +372,25 @@ public class CredentialServiceImpl implements CredentialService {
                             .anyMatch("LEARCredentialEmployee"::equals) || credential.getCredentialType().stream()
                             .anyMatch("LEARCredentialMachine"::equals);
 
-                    JsonNode didNode;
-                    if (isLear) {
-                        JsonNode legacy = vcNode.at("/credentialSubject/mandate/mandatee/id");
-                        if (legacy != null && legacy.isTextual() && !legacy.asText().isBlank()) {
-                            didNode = legacy;
-                        }else{
-                            didNode = vcNode.at("/credentialSubject/id");
-                        }
-                    }else{
-                        didNode = vcNode.at("/credentialSubject/id");
-                    }
-
+                    JsonNode didNode = resolveDidNode(vcNode, isLear);
                     if (didNode.isMissingNode() || didNode.asText().isBlank()) {
                         return Mono.error(new NoSuchVerifiableCredentialException("DID not found in credential"));
                     }
                     return Mono.just(didNode.asText());
                 });
+    }
+
+    private JsonNode resolveDidNode(JsonNode vcNode, boolean isLear) {
+        if (!isLear) {
+            return vcNode.at(DID_PATH);
+        }
+
+        JsonNode legacy = vcNode.at(LEAR_LEGACY_DID_PATH);
+        if (legacy != null && legacy.isTextual() && !legacy.asText().isBlank()) {
+            return legacy;
+        }
+
+        return vcNode.at(DID_PATH);
     }
 
     // ---------------------------------------------------------------------
