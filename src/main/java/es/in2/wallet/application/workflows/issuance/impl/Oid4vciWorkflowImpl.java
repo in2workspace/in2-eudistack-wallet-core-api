@@ -285,6 +285,9 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
     }
 
     private Mono<CredentialPreview> buildCredentialPreview(CredentialResponse credentialResponse,CredentialIssuerMetadata issuerMetadata) {
+        System.out.println("XIVATO1");
+        System.out.println(credentialResponse.credentials());
+        System.out.println(issuerMetadata);
         return Mono.justOrEmpty(credentialResponse)
                 .flatMap(cr -> Mono.justOrEmpty(cr.credentials()))
                 .filter(list -> !list.isEmpty())
@@ -301,12 +304,14 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
     private Mono<JsonNode> decodeVc(String credential) {
         return Mono.defer(() -> {
+            System.out.println("XIVATO2");
             try {
                 // JWT VC
                 if (credential.chars().filter(c -> c == '.').count() == 2) {
                     String payloadB64 = credential.split("\\.")[1];
                     byte[] decoded = Base64.getUrlDecoder().decode(payloadB64);
                     JsonNode payload = objectMapper.readTree(decoded);
+                    System.out.println("XIVATO3");
 
                     return Mono.just(payload.has("vc") ? payload.get("vc") : payload);
                 }
@@ -321,7 +326,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
     }
 
     private CredentialPreview mapVcToPreview(JsonNode vcJson, CredentialIssuerMetadata md) {
-
+        System.out.println("XIVATO5");
         String issuer = md != null
                 ? md.credentialIssuer()
                 : vcJson.path("issuer").asText("Unknown issuer");
