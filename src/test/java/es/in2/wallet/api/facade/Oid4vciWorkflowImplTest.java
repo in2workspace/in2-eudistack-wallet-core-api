@@ -23,6 +23,7 @@ import java.util.*;
 import static es.in2.wallet.domain.utils.ApplicationConstants.JWT_VC;
 import static es.in2.wallet.domain.utils.ApplicationUtils.extractResponseType;
 import static es.in2.wallet.domain.utils.ApplicationUtils.getUserIdFromToken;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,6 +41,8 @@ class Oid4vciWorkflowImplTest {
     private DidKeyGeneratorService didKeyGeneratorService;
     @Mock
     private OID4VCICredentialService oid4vciCredentialService;
+    @Mock
+    private OID4VCIDeferredCredentialService oid4vciDeferredCredentialService;
     @Mock
     private ProofJWTService proofJWTService;
     @Mock
@@ -76,7 +79,10 @@ class Oid4vciWorkflowImplTest {
                     .deferredCredentialEndpoint("https://example.com/deferred")
                     .build();
 
-            TokenResponse tokenResponse = TokenResponse.builder().accessToken("ey1234").build();
+            TokenResponse tokenResponse = TokenResponse.builder()
+                    .accessToken("ey1234")
+                    .refreshToken("1234")
+                    .expiresIn(50000).build();
             List<CredentialResponse.Credential> credentialList = List.of(
                     new CredentialResponse.Credential("unsigned_credential")
             );
@@ -100,10 +106,10 @@ class Oid4vciWorkflowImplTest {
             when(preAuthorizedService.getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken)).thenReturn(Mono.just(tokenResponse));
             when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
-            when(oid4vciCredentialService.getCredential(jwtProof,tokenResponse,tokenObtainedAt, "", credentialIssuerMetadata,JWT_VC,List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
-            when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
-            when(credentialService.saveCredential(processId, userUuid, credentialResponse, JWT_VC)).thenReturn(Mono.just(credentialId));
-            when(deferredCredentialMetadataService.saveDeferredCredentialMetadata(processId, credentialId, credentialResponse.transactionId(), tokenResponse.accessToken(), credentialIssuerMetadata.deferredCredentialEndpoint())).thenReturn(Mono.empty());
+            String credentialConfigurationId = List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0);
+            when(oid4vciCredentialService.getCredential(eq(jwtProof),eq(tokenResponse),anyLong(), isNull(), eq(credentialIssuerMetadata),eq(JWT_VC),eq(credentialConfigurationId))).thenReturn(Mono.just(credentialResponseWithStatus));
+            when(oid4vciDeferredCredentialService.handleDeferredCredential(any(), isNull(), anyString(), isNull(), eq(credentialIssuerMetadata)))
+                    .thenReturn(Mono.empty());
 
             StepVerifier.create(credentialIssuanceServiceFacade.execute(processId, authorizationToken, qrContent)).verifyComplete();
         }
@@ -176,7 +182,8 @@ class Oid4vciWorkflowImplTest {
             when(preAuthorizedService.getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken)).thenReturn(Mono.just(tokenResponse));
             when(proofJWTService.buildCredentialRequest(null, "issuer", did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
-            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, tokenObtainedAt,  "", credentialIssuerMetadata, "jwt_vc_json", List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
+            String credentialConfigurationId = List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0);
+            when(oid4vciCredentialService.getCredential(eq(jwtProof), eq(tokenResponse), anyLong(),  eq(authorisationServerMetadata.tokenEndpoint()), eq(credentialIssuerMetadata), eq("jwt_vc_json"), eq(credentialConfigurationId))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, "jwt_vc_json")).thenReturn(Mono.just(credentialId));
 
@@ -233,7 +240,7 @@ class Oid4vciWorkflowImplTest {
             when(preAuthorizedService.getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken)).thenReturn(Mono.just(tokenResponse));
             when(proofJWTService.buildCredentialRequest(null, "issuer", did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwt));
-            when(oid4vciCredentialService.getCredential(jwt, tokenResponse, tokenObtainedAt,  "", credentialIssuerMetadata, "jwt_vc_json", List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
+            when(oid4vciCredentialService.getCredential(eq(jwt), eq(tokenResponse), anyLong(),  isNull(), eq(credentialIssuerMetadata), eq("jwt_vc_json"), eq(List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0)))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, "jwt_vc_json")).thenReturn(Mono.just(credentialId));
 

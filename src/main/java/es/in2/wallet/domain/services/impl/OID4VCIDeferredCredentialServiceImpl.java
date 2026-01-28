@@ -38,7 +38,6 @@ public class OID4VCIDeferredCredentialServiceImpl implements OID4VCIDeferredCred
             Long interval,
             CredentialIssuerMetadata credentialIssuerMetadata
     ) {
-        System.out.println("Deferred Metadata: " + credentialIssuerMetadata.deferredCredentialEndpoint());
         return Mono.delay(Duration.ofSeconds(interval))
                 .then(ensureValidToken(tokenInfo, tokenEndpoint))
                 .flatMap(validTokenInfo ->
@@ -61,7 +60,6 @@ public class OID4VCIDeferredCredentialServiceImpl implements OID4VCIDeferredCred
                                                     try {
                                                         log.debug("Deferred flow body: {}", responseBody);
                                                         CredentialResponse credentialResponse = objectMapper.readValue(responseBody, CredentialResponse.class);
-                                                        System.out.println("holaaa Credential Response: " + credentialResponse);
 
                                                         if (credentialResponse.transactionId() != null
                                                                 && credentialResponse.transactionId().equals(transactionId)) {
@@ -74,9 +72,6 @@ public class OID4VCIDeferredCredentialServiceImpl implements OID4VCIDeferredCred
                                                             );
                                                         }
 
-                                                        System.out.println("holaaa ha passat: " + credentialResponse);
-
-                                                        // If the credential is available, return it
                                                         if (credentialResponse.credentials().get(0).credential() != null) {
                                                             log.debug("Deferred credential signature completed for: {}", transactionId);
                                                             return Mono.just(
@@ -104,7 +99,6 @@ public class OID4VCIDeferredCredentialServiceImpl implements OID4VCIDeferredCred
     }
 
     private Mono<TokenInfo> ensureValidToken(TokenInfo tokenInfo, String tokenUrl) {
-        System.out.println("HOLAAAAAAAA");
         long currentTime = Instant.now().getEpochSecond();
         long expiry = tokenInfo.tokenObtainedAt() + tokenInfo.expiresIn();
         long safetyWindow = 10;
