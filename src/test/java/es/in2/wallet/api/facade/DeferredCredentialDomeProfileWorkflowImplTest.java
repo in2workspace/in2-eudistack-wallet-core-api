@@ -49,8 +49,8 @@ class DeferredCredentialDomeProfileWorkflowImplTest {
                 .deferredEndpoint(deferredEndpoint)
                 .build();
 
-        List<CredentialResponse.Credentials> credentialList = List.of(
-                new CredentialResponse.Credentials("ey134...")
+        List<CredentialResponse.Credential> credentialList = List.of(
+                new CredentialResponse.Credential("ey134...")
         );
 
         CredentialResponse credentialResponse = CredentialResponse.builder()

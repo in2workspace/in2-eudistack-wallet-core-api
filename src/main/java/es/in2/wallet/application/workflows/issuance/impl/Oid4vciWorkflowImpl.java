@@ -5,19 +5,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import es.in2.wallet.application.dto.*;
 import es.in2.wallet.application.workflows.issuance.Oid4vciWorkflow;
 import es.in2.wallet.domain.services.*;
-import es.in2.wallet.domain.services.impl.NotificationClientServiceImpl;
 import es.in2.wallet.infrastructure.core.config.NotificationRequestWebSocketHandler;
 import es.in2.wallet.infrastructure.core.config.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 
 import static es.in2.wallet.domain.utils.ApplicationUtils.getUserIdFromToken;
 
@@ -31,6 +34,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
     private final AuthorisationServerMetadataService authorisationServerMetadataService;
     private final PreAuthorizedService preAuthorizedService;
     private final OID4VCICredentialService oid4vciCredentialService;
+    private final OID4VCIDeferredCredentialService oid4vciDeferredCredentialService;
     private final DidKeyGeneratorService didKeyGeneratorService;
     private final ProofJWTService proofJWTService;
     private final SignerService signerService;
@@ -58,11 +62,11 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                                 )
                                 .flatMap(authorisationServerMetadata ->
                                         getCredentialWithPreAuthorizedCodeFlow(
-                                            processId,
-                                            authorizationToken,
-                                            credentialOffer,
-                                            authorisationServerMetadata,
-                                            credentialIssuerMetadata
+                                                processId,
+                                                authorizationToken,
+                                                credentialOffer,
+                                                authorisationServerMetadata,
+                                                credentialIssuerMetadata
                                         )
                                 )));
     }
@@ -77,6 +81,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
         return generateDid()
                 .flatMap(did -> getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken)
                         .flatMap(tokenResponse -> {
+                            Long tokenObtainedAt = Instant.now().getEpochSecond();
                             List<String> credentialConfigurationsIds = List.copyOf(credentialOffer.credentialConfigurationsIds());
                             if (credentialConfigurationsIds.isEmpty()) {
                                 return Mono.error(new RuntimeException("No credential configurations IDs found"));
@@ -98,10 +103,17 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                             return jwtMono.flatMap(jwt ->
                                     retrieveCredentialFormatFromCredentialIssuerMetadataByCredentialConfigurationId(credentialConfigurationId, credentialIssuerMetadata)
                                             .flatMap(format ->
-                                                    oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, format, credentialConfigurationId)
-                                                            .flatMap(credentialResponseWithStatus ->
-                                                                    handleCredentialResponse(processId, credentialResponseWithStatus, authorizationToken, tokenResponse, credentialIssuerMetadata, format)
-                                                            )
+                                                    oid4vciCredentialService.getCredential(jwt, tokenResponse, tokenObtainedAt, authorisationServerMetadata.tokenEndpoint(), credentialIssuerMetadata, format, credentialConfigurationId)
+                                                            .flatMap(credentialResponseWithStatus -> {
+                                                                if (credentialResponseWithStatus.statusCode().equals(HttpStatusCode.valueOf(200))) {
+                                                                    return handleCredentialResponse(processId, credentialResponseWithStatus, authorizationToken, tokenResponse, credentialIssuerMetadata, format);
+                                                                } else if (credentialResponseWithStatus.statusCode().equals(HttpStatusCode.valueOf(202))) {
+                                                                    return handleDeferredCredential(tokenResponse, tokenObtainedAt, authorisationServerMetadata.tokenEndpoint(), credentialResponseWithStatus, credentialIssuerMetadata, authorizationToken, format);
+                                                                } else {
+                                                                    return Mono.error(new IllegalArgumentException("Unexpected HTTP status: " + credentialResponseWithStatus.statusCode()));
+                                                                }
+
+                                                            })
                                             )
                             );
 
@@ -109,6 +121,31 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                 );
     }
 
+    Mono<Void> handleDeferredCredential(TokenResponse tokenResponse, Long tokenObtainedAt, String tokenEndpoint, CredentialResponseWithStatus responseWithStatus1, CredentialIssuerMetadata credentialIssuerMetadata, String authorizationToken, String format) {
+        return Mono.fromRunnable(() -> {
+                    String processId = UUID.randomUUID().toString();
+                    MDC.put("processId", processId);
+                    oid4vciDeferredCredentialService.handleDeferredCredential(
+                                    TokenInfo.builder()
+                                            .accessToken(tokenResponse.accessToken())
+                                            .refreshToken(tokenResponse.refreshToken())
+                                            .tokenObtainedAt(tokenObtainedAt)
+                                            .expiresIn(tokenResponse.expiresIn())
+                                            .build(),
+                                    tokenEndpoint,
+                                    responseWithStatus1.credentialResponse().transactionId(),
+                                    responseWithStatus1.credentialResponse().interval(),
+                                    credentialIssuerMetadata)
+                            .flatMap(credentialResponseWithStatus ->
+                                    handleCredentialResponse(processId, credentialResponseWithStatus, authorizationToken, tokenResponse, credentialIssuerMetadata, format))
+                            .subscribeOn(Schedulers.boundedElastic())
+                            .subscribe(
+                                    r -> log.info("ProcessID: {} - Background deferred credential completed", processId),
+                                    e -> log.error("ProcessID: {} - Background deferred credential failed", processId, e)
+                            );
+                })
+                .then(Mono.empty());
+    }
 
     /**
      * Retrieves a pre-authorized token from the authorization server.
@@ -303,7 +340,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                 .flatMap(cr -> Mono.justOrEmpty(cr.credentials()))
                 .filter(list -> !list.isEmpty())
                 .map(list -> list.get(0))
-                .map(CredentialResponse.Credentials::credential)
+                .map(CredentialResponse.Credential::credential)
                 .filter(cred -> cred != null && !cred.isBlank())
                 .flatMap(this::decodeVc)
                 .map(this::mapVcToPreview)

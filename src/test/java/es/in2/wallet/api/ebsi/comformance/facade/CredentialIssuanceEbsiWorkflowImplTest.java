@@ -24,6 +24,8 @@ import java.util.*;
 
 import static es.in2.wallet.domain.utils.ApplicationUtils.extractResponseType;
 import static es.in2.wallet.domain.utils.ApplicationUtils.getUserIdFromToken;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -99,7 +101,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
             when(preAuthorizedService.getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken)).thenReturn(Mono.just(tokenResponse));
             when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
-            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
+            when(oid4vciCredentialService.getCredential(eq(jwtProof), eq(tokenResponse), anyLong(), eq(""), eq(credentialIssuerMetadata), eq(credentialOffer.credentials().get(0).format()), eq(List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0)))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse,credentialOffer.credentials().get(0).format())).thenReturn(Mono.just(credentialId));
 
@@ -147,7 +149,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
             when(preAuthorizedService.getPreAuthorizedToken(processId, credentialOffer, authorisationServerMetadata, authorizationToken)).thenReturn(Mono.just(tokenResponse));
             when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
-            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
+            when(oid4vciCredentialService.getCredential(eq(jwtProof), eq(tokenResponse), anyLong(), eq(""), eq(credentialIssuerMetadata), eq(credentialOffer.credentials().get(0).format()), eq(List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0)))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, credentialOffer.credentials().get(0).format())).thenReturn(Mono.just(credentialId));
 
@@ -202,7 +204,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
             when(ebsiAuthorisationService.sendTokenRequest("codeVerifier", did, authorisationServerMetadata, mockedMap)).thenReturn(Mono.just(tokenResponse));
             when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
-            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
+            when(oid4vciCredentialService.getCredential(eq(jwtProof), eq(tokenResponse), anyLong(), eq(""), eq(credentialIssuerMetadata), eq(credentialOffer.credentials().get(0).format()), eq(List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0)))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, credentialOffer.credentials().get(0).format())).thenReturn(Mono.just(credentialId));
 
@@ -255,7 +257,7 @@ class CredentialIssuanceEbsiWorkflowImplTest {
             when(ebsiAuthorisationService.sendTokenRequest("codeVerifier", did, authorisationServerMetadata, mockedMap)).thenReturn(Mono.just(tokenResponse));
             when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
-            when(oid4vciCredentialService.getCredential(jwtProof, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(), List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
+            when(oid4vciCredentialService.getCredential(eq(jwtProof), eq(tokenResponse), anyLong(), eq(""), eq(credentialIssuerMetadata), eq(credentialOffer.credentials().get(0).format()), eq(List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0)))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, credentialOffer.credentials().get(0).format())).thenReturn(Mono.just(credentialId));
 
@@ -317,8 +319,8 @@ class CredentialIssuanceEbsiWorkflowImplTest {
             when(proofJWTService.buildCredentialRequest(null, credentialIssuerMetadata.credentialIssuer(), did)).thenReturn(Mono.just(jsonNode));
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwt));
 
-            when(oid4vciCredentialService.getCredential(jwt, tokenResponse, credentialIssuerMetadata, credentialOffer.credentials().get(0).format(),
-                    List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0))).thenReturn(Mono.just(credentialResponseWithStatus));
+            when(oid4vciCredentialService.getCredential(eq(jwt), eq(tokenResponse), anyLong(), eq(""), eq(credentialIssuerMetadata), eq(credentialOffer.credentials().get(0).format()),
+                    eq(List.copyOf(credentialOffer.credentialConfigurationsIds()).get(0)))).thenReturn(Mono.just(credentialResponseWithStatus));
 
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, credentialOffer.credentials().get(0).format())).thenReturn(Mono.just(credentialId));

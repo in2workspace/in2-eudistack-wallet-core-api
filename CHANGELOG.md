@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added notification endpoint implementation
 
+
+## [v2.0.3](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.3)
+### Changed
+- Update refresh token.
+- Update deferred credential flow.
+
 ## [v2.0.2](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.2)
 ### Fixed
 - Fixed did for delete endpoint
