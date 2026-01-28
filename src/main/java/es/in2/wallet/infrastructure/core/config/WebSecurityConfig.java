@@ -48,7 +48,7 @@ public class WebSecurityConfig {
                         ServerWebExchangeMatchers.pathMatchers(
                                 HttpMethod.GET,
                                 ENDPOINT_PIN,
-                                NOTIFICATION_PIN,
+                                ENDPOINT_NOTIFICATION,
                                 ENDPOINT_HEALTH,
                                 ENDPOINT_PROMETHEUS
                         )))
@@ -56,7 +56,7 @@ public class WebSecurityConfig {
                         .pathMatchers(
                                 HttpMethod.GET,
                                 ENDPOINT_PIN,
-                                NOTIFICATION_PIN,
+                                ENDPOINT_NOTIFICATION,
                                 ENDPOINT_HEALTH,
                                 ENDPOINT_PROMETHEUS
                         ).permitAll()

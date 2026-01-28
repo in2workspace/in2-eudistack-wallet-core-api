@@ -335,19 +335,22 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
     private CredentialPreview mapVcToPreview(JsonNode vcJson) {
         JsonNode cs = vcJson.path("credentialSubject");
-        String issuer = String.valueOf(cs.path("issuer").path("commonName"));
-
-        if (issuer == null || issuer.isBlank()) {
-            JsonNode issuerNode = vcJson.path("issuer");
-            issuer = issuerNode.isTextual()
-                    ? issuerNode.asText()
-                    : String.valueOf(issuerNode.path("id"));
-        }
+        JsonNode issuerNode = cs.path("issuer").path("commonName");
+        String issuer = issuerNode.isMissingNode() || issuerNode.isNull()
+                ? null
+                : issuerNode.asText();
 
         String subjectName = null;
         JsonNode mandatee = cs.path("mandate").path("mandatee");
-        String firstName = String.valueOf(mandatee.path("firstName"));
-        String lastName  = String.valueOf(mandatee.path("lastName"));
+        JsonNode firstNameNode = mandatee.path("firstName");
+        JsonNode lastNameNode  = mandatee.path("lastName");
+
+        String firstName = firstNameNode.isMissingNode() || firstNameNode.isNull()
+                ? null
+                : firstNameNode.asText();
+        String lastName = lastNameNode.isMissingNode() || lastNameNode.isNull()
+                ? null
+                : lastNameNode.asText();
 
         if (firstName != null || lastName != null) {
             subjectName = ((firstName != null) ? firstName : "") + " " + ((lastName != null) ? lastName : "");
