@@ -52,19 +52,14 @@ class Oid4vciWorkflowImplTest {
     private CredentialService credentialService;
     @Mock
     private UserService userService;
-    @Mock
-    private DeferredCredentialMetadataService deferredCredentialMetadataService;
     @Mock private WebSocketSessionManager sessionManager;
     @Mock private NotificationRequestWebSocketHandler notificationRequestWebSocketHandler;
     @Mock private NotificationClientService notificationClientService;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
-
     @InjectMocks
     private Oid4vciWorkflowImpl credentialIssuanceServiceFacade;
-
-    private final Long tokenObtainedAt = 1719848000L;
 
     @Test
     void getCredentialWithPreAuthorizedCodeDOMEProfile() throws JsonProcessingException {
@@ -103,8 +98,6 @@ class Oid4vciWorkflowImplTest {
             String jwtProof = "jwt";
 
             String userIdStr = UUID.randomUUID().toString();
-            UUID userUuid = UUID.fromString(userIdStr);
-            String credentialId = UUID.randomUUID().toString();
 
             when(getUserIdFromToken(authorizationToken)).thenReturn(Mono.just(userIdStr));
             when(credentialOfferService.getCredentialOfferFromCredentialOfferUri(processId, qrContent)).thenReturn(Mono.just(credentialOffer));
@@ -118,11 +111,6 @@ class Oid4vciWorkflowImplTest {
             when(oid4vciCredentialService.getCredential(eq(jwtProof),eq(tokenResponse),anyLong(), isNull(), eq(credentialIssuerMetadata),eq(JWT_VC),eq(credentialConfigurationId))).thenReturn(Mono.just(credentialResponseWithStatus));
             when(oid4vciDeferredCredentialService.handleDeferredCredential(any(), isNull(), anyString(), isNull(), eq(credentialIssuerMetadata)))
                     .thenReturn(Mono.empty());
-            when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
-            when(credentialService.saveCredential(processId, userUuid, credentialResponse, JWT_VC)).thenReturn(Mono.just(credentialId));
-            when(deferredCredentialMetadataService.saveDeferredCredentialMetadata(processId, credentialId, credentialResponse.transactionId(), credentialResponse.notificationId(), tokenResponse.accessToken(), credentialIssuerMetadata.deferredCredentialEndpoint(), credentialIssuerMetadata.notificationEndpoint())).thenReturn(Mono.empty());
-            WebSocketSession mockSession = mock(WebSocketSession.class);
-            when(sessionManager.getSession(userIdStr)).thenReturn(Mono.just(mockSession));
 
             StepVerifier.create(credentialIssuanceServiceFacade.execute(processId, authorizationToken, qrContent)).verifyComplete();
         }
@@ -315,17 +303,17 @@ class Oid4vciWorkflowImplTest {
 
             TokenResponse tokenResponse = TokenResponse.builder().accessToken("issuer-access-token").build();
             String vcJson = """
-            {
-              "issuer": "did:issuer:123",
-              "validUntil": "2030-12-31",
-              "credentialSubject": {
-                "mandate": {
-                  "mandatee": { "firstName": "John", "lastName": "Doe" },
-                  "mandator": { "organization": "ACME" }
-                }
-              }
+        {
+          "issuer": "did:issuer:123",
+          "validUntil": "2030-12-31",
+          "credentialSubject": {
+            "mandate": {
+              "mandatee": { "firstName": "John", "lastName": "Doe" },
+              "mandator": { "organization": "ACME" }
             }
-            """;
+          }
+        }
+        """;
 
             CredentialResponse credentialResponse = CredentialResponse.builder()
                     .notificationId("notif-1")
@@ -361,22 +349,24 @@ class Oid4vciWorkflowImplTest {
                     .thenReturn(Mono.just(jwtProof));
 
             when(oid4vciCredentialService.getCredential(
-                    jwtProof,
-                    tokenResponse,
+                    eq(jwtProof),
+                    eq(tokenResponse),
                     anyLong(),
-                    authorisationServerMetadata.tokenEndpoint(),
-                    credentialIssuerMetadata,
-                    JWT_VC,
-                    "LEARCredential"
+                    isNull(),
+                    eq(credentialIssuerMetadata),
+                    eq(JWT_VC),
+                    eq("LEARCredential")
             )).thenReturn(Mono.just(crws));
 
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
             when(credentialService.saveCredential(processId, userUuid, credentialResponse, JWT_VC))
                     .thenReturn(Mono.just(credentialId));
 
-            when(sessionManager.getSession(userIdStr)).thenReturn(Mono.just(mockSession));
+            String userUuidStr = userUuid.toString();
 
-            when(notificationRequestWebSocketHandler.getDecisionResponses(userIdStr))
+            when(sessionManager.getSession(userUuidStr)).thenReturn(Mono.just(mockSession));
+
+            when(notificationRequestWebSocketHandler.getDecisionResponses(userUuidStr))
                     .thenReturn(Flux.just("ACCEPTED"));
 
             doNothing().when(notificationRequestWebSocketHandler)
@@ -391,7 +381,7 @@ class Oid4vciWorkflowImplTest {
             StepVerifier.create(credentialIssuanceServiceFacade.execute(processId, authorizationToken, qrContent))
                     .verifyComplete();
 
-            verify(sessionManager).getSession(userIdStr);
+            verify(sessionManager).getSession(userUuidStr);
             verify(notificationRequestWebSocketHandler)
                     .sendNotificationDecisionRequest(eq(mockSession), any(WebSocketServerNotificationMessage.class));
 
@@ -443,8 +433,8 @@ class Oid4vciWorkflowImplTest {
             TokenResponse tokenResponse = TokenResponse.builder().accessToken("issuer-access-token").build();
 
             String vcJson = """
-            { "issuer":"did:issuer:123", "credentialSubject": { "mandate": { "mandatee": { "firstName":"A" } } } }
-            """;
+        { "issuer":"did:issuer:123", "credentialSubject": { "mandate": { "mandatee": { "firstName":"A" } } } }
+        """;
 
             CredentialResponse credentialResponse = CredentialResponse.builder()
                     .notificationId("notif-1")
@@ -473,13 +463,13 @@ class Oid4vciWorkflowImplTest {
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
 
             when(oid4vciCredentialService.getCredential(
-                    jwtProof,
-                    tokenResponse,
+                    eq(jwtProof),
+                    eq(tokenResponse),
                     anyLong(),
-                    authorisationServerMetadata.tokenEndpoint(),
-                    credentialIssuerMetadata,
-                    JWT_VC,
-                    "LEARCredential"
+                    isNull(),
+                    eq(credentialIssuerMetadata),
+                    eq(JWT_VC),
+                    eq("LEARCredential")
             )).thenReturn(Mono.just(crws));
 
             when(userService.storeUser(processId, userIdStr)).thenReturn(Mono.just(userUuid));
@@ -581,13 +571,13 @@ class Oid4vciWorkflowImplTest {
             when(signerService.buildJWTSFromJsonNode(jsonNode, did, "proof")).thenReturn(Mono.just(jwtProof));
 
             when(oid4vciCredentialService.getCredential(
-                    jwtProof,
-                    tokenResponse,
+                    eq(jwtProof),
+                    eq(tokenResponse),
                     anyLong(),
-                    authorisationServerMetadata.tokenEndpoint(),
-                    credentialIssuerMetadata,
-                    JWT_VC,
-                    "LEARCredential"
+                    isNull(),
+                    eq(credentialIssuerMetadata),
+                    eq(JWT_VC),
+                    eq("LEARCredential")
             )).thenReturn(Mono.just(crws));
 
 
