@@ -224,8 +224,8 @@ public class EbsiConfig {
                 .trim();
 
         // We'll store it as a plain credential (format=null => code checks "if format == null => parseAsPlainJson(...)")
-        List<CredentialResponse.Credentials> credentialList = List.of(
-                new CredentialResponse.Credentials(plainJsonVc)
+        List<CredentialResponse.Credential> credentialList = List.of(
+                new CredentialResponse.Credential(plainJsonVc)
         );
 
         CredentialResponse newCredentialResponse = CredentialResponse.builder()

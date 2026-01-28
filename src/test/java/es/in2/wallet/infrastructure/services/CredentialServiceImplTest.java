@@ -48,8 +48,8 @@ class CredentialServiceImplTest {
         String processId = "proc123";
         UUID userId = UUID.randomUUID();
         String credential = "credential";
-        List<CredentialResponse.Credentials> credentialList = List.of(
-                new CredentialResponse.Credentials(credential)
+        List<CredentialResponse.Credential> credentialList = List.of(
+                new CredentialResponse.Credential(credential)
         );
         String credentialId = "8c7a6213-544d-450d-8e3d-b41fa9009198";
         CredentialResponse response = CredentialResponse.builder()
@@ -96,8 +96,8 @@ class CredentialServiceImplTest {
         String processId = "proc123";
         UUID userId = UUID.randomUUID();
         String credential = "someJwtData";
-        List<CredentialResponse.Credentials> credentialList = List.of(
-                new CredentialResponse.Credentials(credential)
+        List<CredentialResponse.Credential> credentialList = List.of(
+                new CredentialResponse.Credential(credential)
         );
         String format = "jwt_vc";
         // This is the 'CredentialResponse' with format=JWT_VC
@@ -170,8 +170,8 @@ class CredentialServiceImplTest {
         // GIVEN
         String processId = "proc123";
         UUID userId = UUID.randomUUID();
-        List<CredentialResponse.Credentials> credentialList = List.of(
-                new CredentialResponse.Credentials("foo-data")
+        List<CredentialResponse.Credential> credentialList = List.of(
+                new CredentialResponse.Credential("foo-data")
         );
         CredentialResponse response = CredentialResponse.builder()
                 .credentials(credentialList)
@@ -217,8 +217,8 @@ class CredentialServiceImplTest {
 
         ArgumentCaptor<Credential> captor = ArgumentCaptor.forClass(Credential.class);
         when(credentialRepository.save(captor.capture())).thenReturn(Mono.just(updated));
-        List<CredentialResponse.Credentials> credentialList = List.of(
-                new CredentialResponse.Credentials("some-jwt-data")
+        List<CredentialResponse.Credential> credentialList = List.of(
+                new CredentialResponse.Credential("some-jwt-data")
         );
         CredentialResponse deferredResponse = CredentialResponse.builder()
                 .credentials(credentialList)

@@ -11,6 +11,7 @@ public class ApplicationConstants {
     public static final long LSB = 0x7FL;
     public static final long MSBALL = 0xFFFFFF80L;
     public static final String PRE_AUTH_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:pre-authorized_code";
+    public static final String REFRESH_TOKEN_GRANT_TYPE = "refresh_token";
     public static final String BEARER = "Bearer ";
     public static final String HEADER_AUTHORIZATION = "Authorization";
     public static final String CREDENTIALS = "credentials";
