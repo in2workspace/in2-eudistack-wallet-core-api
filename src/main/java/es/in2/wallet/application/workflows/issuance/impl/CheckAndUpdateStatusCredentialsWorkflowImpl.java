@@ -54,7 +54,6 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
     }
     @Override
     public Mono<Void> executeForUser(String processId, String userId) {
-        System.out.print("EXECUTEFORUSER");
         Map<String, Mono<List<String>>> nonceCache = new ConcurrentHashMap<>();
         Map<String, Mono<byte[]>> bitstringCache = new ConcurrentHashMap<>();
 

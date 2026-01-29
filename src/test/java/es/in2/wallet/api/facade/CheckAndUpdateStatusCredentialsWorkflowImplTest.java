@@ -2,25 +2,20 @@ package es.in2.wallet.api.facade;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import es.in2.wallet.application.dto.CredentialStatus;
 import es.in2.wallet.application.workflows.issuance.impl.CheckAndUpdateStatusCredentialsWorkflowImpl;
 import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.enums.LifeCycleStatus;
 import es.in2.wallet.domain.services.*;
 import es.in2.wallet.infrastructure.core.config.WebClientConfig;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
 
@@ -180,7 +175,7 @@ class CheckAndUpdateStatusCredentialsWorkflowImplTest {
 //        when(credentialService.getAllCredentialsByUser("test")).thenReturn(Mono.just(List.of(credential)));
 //        when(credentialService.getCredentialJsonVc(credential)).thenReturn(vcJson);
 //        when(credentialService.getCredentialStatus(credential)).thenReturn(status);
-////        when(webClient.centralizedWebClient()).thenReturn(WebClient.create());
+//        when(webClient.centralizedWebClient()).thenReturn(WebClient.create());
 //
 //        StepVerifier.create(checkAndUpdateStatusCredentialsWorkflow.executeForUser("process-id","test"))
 //                .verifyComplete();
