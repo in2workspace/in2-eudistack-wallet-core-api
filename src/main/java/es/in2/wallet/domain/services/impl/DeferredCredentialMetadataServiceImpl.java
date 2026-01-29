@@ -24,8 +24,10 @@ public class DeferredCredentialMetadataServiceImpl implements DeferredCredential
             String processId,
             String credentialId,
             String transactionId,
+            String notificationId,
             String accessToken,
-            String deferredEndpoint
+            String deferredEndpoint,
+            String notificationEndpoint
     ) {
         Instant now = Instant.now();
         return deferredCredentialMetadataRepository.save(

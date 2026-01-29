@@ -14,6 +14,7 @@ public record CredentialIssuerMetadata(
         @JsonProperty("authorization_server") String authorizationServer,
         @JsonProperty("credential_endpoint") String credentialEndpoint,
         @JsonProperty("deferred_credential_endpoint") String deferredCredentialEndpoint,
+        @JsonProperty("notification_endpoint") String notificationEndpoint,
         @JsonProperty("credentials_supported") List<CredentialsSupported> credentialsSupported,
 
         //From this object, we only serialize the format property and cryptographic_binding_methods_supported because, for the moment, they are the only objects we need to interpret and obtain to perform the credential Request for the DOME PROFILE
