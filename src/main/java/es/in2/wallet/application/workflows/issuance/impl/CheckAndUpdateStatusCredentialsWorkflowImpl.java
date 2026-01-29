@@ -67,106 +67,159 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
                 .then();
     }
 
-
-    private Flux<Credential> handleCredentialStatusCheck(String processId, Credential credential, Map<String, Mono<List<String>>> nonceCache, Map<String, Mono<byte[]>> bitstringCache) {
+    private Flux<Credential> handleCredentialStatusCheck(
+            String processId,
+            Credential credential,
+            Map<String, Mono<List<String>>> nonceCache,
+            Map<String, Mono<byte[]>> bitstringCache
+    ) {
         log.info("ProcessID: {} - Checking credentialId={}", processId, credential.getId());
+
         if (isCredentialExpired(credential)) {
             return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.EXPIRED);
         }
 
-        CredentialStatus credentialStatus = credentialService.getCredentialStatus(credential);
-        if (credentialStatus == null || credentialStatus.statusListCredential() == null || credentialStatus.statusListIndex() == null || credentialStatus.type() == null) {
-            log.debug("ProcessID: {} - Credential {} missing credentialStatus", processId, credential.getId());
+        Optional<StatusListCheckData> dataOpt = buildStatusListCheckData(processId, credential);
+        if (dataOpt.isEmpty()) {
             return Flux.empty();
+        }
+
+        StatusListCheckData data = dataOpt.get();
+
+        if (PLAIN_LIST_ENTITY.equals(data.type())) {
+            return handleLegacyPlainList(processId, credential, data, nonceCache);
+        }
+
+        if (BIT_STRING_STATUS_LIST_ENTRY.equals(data.type())) {
+            return handleBitstringStatusList(processId, credential, data, bitstringCache);
+        }
+
+        log.warn("ProcessID: {} - Unsupported credentialStatus.type '{}' for credential {}",
+                processId, data.type(), credential.getId());
+        return Flux.empty();
+    }
+
+    private Optional<StatusListCheckData> buildStatusListCheckData(String processId, Credential credential) {
+        CredentialStatus credentialStatus = credentialService.getCredentialStatus(credential);
+        if (credentialStatus == null
+                || credentialStatus.statusListCredential() == null
+                || credentialStatus.statusListIndex() == null
+                || credentialStatus.type() == null) {
+            log.debug("ProcessID: {} - Credential {} missing credentialStatus", processId, credential.getId());
+            return Optional.empty();
         }
 
         String rawUrl = credentialStatus.statusListCredential();
         String listIndex = credentialStatus.statusListIndex().trim();
         String type = credentialStatus.type().trim();
-        log.info("Type: " + type);
 
         Optional<URI> statusListUriOpt = parseAndValidateStatusListCredentialUri(processId, credential, rawUrl);
         if (statusListUriOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        String cleanedUrl = statusListUriOpt.get().toString();
+        return Optional.of(new StatusListCheckData(cleanedUrl, listIndex, type));
+    }
+
+    private Flux<Credential> handleLegacyPlainList(
+            String processId,
+            Credential credential,
+            StatusListCheckData data,
+            Map<String, Mono<List<String>>> nonceCache
+    ) {
+        Mono<List<String>> revokedNoncesMono = nonceCache.computeIfAbsent(data.cleanedUrl(), url ->
+                getRevokedNoncesFromIssuer(url)
+                        .doOnError(e -> log.error("ProcessID: {} - Error fetching nonces from {}: {}", processId, url, e.toString()))
+                        .cache()
+        );
+
+        return revokedNoncesMono
+                .flatMapMany(nonces -> {
+                    boolean isRevoked = nonces.contains(data.listIndex());
+                    if (isRevoked) {
+                        return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.REVOKED);
+                    }
+                    log.debug("ProcessID: {} - Credential {} not revoked (legacy)", processId, credential.getId());
+                    return Flux.empty();
+                })
+                .onErrorResume(e -> Flux.empty());
+    }
+
+    private Flux<Credential> handleBitstringStatusList(
+            String processId,
+            Credential credential,
+            StatusListCheckData data,
+            Map<String, Mono<byte[]>> bitstringCache
+    ) {
+        OptionalInt indexOpt = parseNonNegativeInt(data.listIndex(), processId, credential);
+        if (indexOpt.isEmpty()) {
             return Flux.empty();
         }
 
-        URI statusListUri = statusListUriOpt.get();
-        String cleanedUrl = statusListUri.toString();
+        int index = indexOpt.getAsInt();
 
-        // legacy
-        if (PLAIN_LIST_ENTITY.equals(type)) {
-            Mono<List<String>> revokedNoncesMono = nonceCache.computeIfAbsent(cleanedUrl, k ->
-                    getRevokedNoncesFromIssuer(k)
-                            .doOnError(e -> log.error("ProcessID: {} - Error fetching nonces from {}: {}", processId, k, e.toString()))
-                            .cache()
-            );
+        Mono<byte[]> rawBytesMono = bitstringCache.computeIfAbsent(data.cleanedUrl(), url -> fetchBitstringBytes(processId, url));
 
-            return revokedNoncesMono
-                    .flatMapMany(nonces -> {
-                        boolean isRevoked = nonces.contains(listIndex);
-                        if (isRevoked) {
-                            return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.REVOKED);
-                        }
-                        log.debug("ProcessID: {} - Credential {} not revoked (legacy)", processId, credential.getId());
-                        return Flux.empty();
-                    })
-                    .onErrorResume(e -> Flux.empty());
+        return rawBytesMono
+                .flatMapMany(rawBytes -> verifyBitstringIndexAndUpdate(processId, credential, rawBytes, index))
+                .doOnError(e -> log.warn("ProcessID: {} - credentialId={} cannot verify bitstring status: {}",
+                        processId, credential.getId(), e.toString()))
+                .onErrorResume(e -> Flux.empty());
+    }
+
+    private OptionalInt parseNonNegativeInt(String value, String processId, Credential credential) {
+        final int index;
+        try {
+            index = Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            log.error("ProcessID: {} - Invalid statusListIndex '{}' for credential {}",
+                    processId, value, credential.getId());
+            return OptionalInt.empty();
         }
 
-        if (BIT_STRING_STATUS_LIST_ENTRY.equals(type)) {
-            final int index;
-            try {
-                index = Integer.parseInt(listIndex);
-            } catch (NumberFormatException e) {
-                log.error("ProcessID: {} - Invalid statusListIndex '{}' for credential {}",
-                        processId, listIndex, credential.getId());
-                return Flux.empty();
-            }
-
-            if (index < 0) {
-                log.error("ProcessID: {} - statusListIndex must be >= 0 for credential {}",
-                        processId, credential.getId());
-                return Flux.empty();
-            }
-
-            Mono<byte[]> rawBytesMono = bitstringCache.computeIfAbsent(cleanedUrl, url -> {
-                log.debug("ProcessID: {} - bitstringCache MISS url={} expectedPurpose={}", processId, url, REVOCATION);
-
-                return getBitstringRawBytesFromIssuer(url, REVOCATION)
-                        .doOnSuccess(bytes -> log.info("ProcessID: {} - Fetched bitstring bytes len={} from {}", processId, bytes.length, url))
-                        .doOnError(e -> log.error("ProcessID: {} - Error fetching bitstring from {}: {}", processId, url, e.toString()))
-                        .cache();
-            });
-
-            return rawBytesMono
-                    .flatMapMany(rawBytes -> {
-                        int maxBits = statusListCredentialService.maxBits(rawBytes);
-                        if (index >= maxBits) {
-                            log.warn("ProcessID: {} - statusListIndex out of range for credential {}. index={}, maxBits={}",
-                                    processId, credential.getId(), index, maxBits);
-                            return Flux.empty();
-                        }
-
-                        boolean revoked = statusListCredentialService.isBitSet(rawBytes, index);
-                        log.info("ProcessID: {} - credentialId={} bitstring revoked={}", processId, credential.getId(), revoked);
-
-                        if (revoked) {
-                            return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.REVOKED);
-                        }
-
-                        log.debug("ProcessID: {} - Credential {} not revoked (bitstring)", processId, credential.getId());
-                        return Flux.empty();
-                    })
-                    .doOnError(e -> log.warn("ProcessID: {} - credentialId={} cannot verify bitstring status: {}",
-                            processId, credential.getId(), e.toString()))
-                    .onErrorResume(e -> Flux.empty());
+        if (index < 0) {
+            log.error("ProcessID: {} - statusListIndex must be >= 0 for credential {}",
+                    processId, credential.getId());
+            return OptionalInt.empty();
         }
 
+        return OptionalInt.of(index);
+    }
 
-        log.warn("ProcessID: {} - Unsupported credentialStatus.type '{}' for credential {}",
-                processId, type, credential.getId());
+    private Mono<byte[]> fetchBitstringBytes(String processId, String url) {
+        log.debug("ProcessID: {} - bitstringCache MISS url={} expectedPurpose={}", processId, url, REVOCATION);
+
+        return getBitstringRawBytesFromIssuer(url, REVOCATION)
+                .doOnSuccess(bytes -> log.info("ProcessID: {} - Fetched bitstring bytes len={} from {}", processId, bytes.length, url))
+                .doOnError(e -> log.error("ProcessID: {} - Error fetching bitstring from {}: {}", processId, url, e.toString()))
+                .cache();
+    }
+
+    private Flux<Credential> verifyBitstringIndexAndUpdate(
+            String processId,
+            Credential credential,
+            byte[] rawBytes,
+            int index
+    ) {
+        int maxBits = statusListCredentialService.maxBits(rawBytes);
+        if (index >= maxBits) {
+            log.warn("ProcessID: {} - statusListIndex out of range for credential {}. index={}, maxBits={}",
+                    processId, credential.getId(), index, maxBits);
+            return Flux.empty();
+        }
+
+        boolean revoked = statusListCredentialService.isBitSet(rawBytes, index);
+        log.info("ProcessID: {} - credentialId={} bitstring revoked={}", processId, credential.getId(), revoked);
+
+        if (revoked) {
+            return updateCredentialStatusIfNecessary(processId, credential, LifeCycleStatus.REVOKED);
+        }
+
+        log.debug("ProcessID: {} - Credential {} not revoked (bitstring)", processId, credential.getId());
         return Flux.empty();
     }
+
 
 
     private boolean isCredentialExpired(Credential credential) {
@@ -305,5 +358,11 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
         int max = 500;
         return body.length() <= max ? body : body.substring(0, max) + "...";
     }
+
+    private record StatusListCheckData(
+            String cleanedUrl,
+            String listIndex,
+            String type
+    ) {}
 
 }
