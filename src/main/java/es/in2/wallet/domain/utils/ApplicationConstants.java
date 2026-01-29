@@ -47,6 +47,7 @@ public class ApplicationConstants {
     public static final String VERIFIABLE_PRESENTATION_EXPIRATION_UNIT = "SECONDS";
     public static final String AUTH_SERVER_JWT_DECODER_PATH = "/protocol/openid-connect/certs";
     public static final String ENDPOINT_PIN = "/api/v1/pin";
+    public static final String ENDPOINT_NOTIFICATION = "/api/v1/notification";
     public static final String ENDPOINT_HEALTH = "/health";
     public static final String ENDPOINT_PROMETHEUS = "/prometheus";
     public static final String REVOCATION = "revocation";

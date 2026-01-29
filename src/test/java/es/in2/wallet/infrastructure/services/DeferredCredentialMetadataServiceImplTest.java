@@ -36,8 +36,10 @@ class DeferredCredentialMetadataServiceImplTest {
         String processId = "procSave";
         String credentialId = UUID.randomUUID().toString();
         String transactionId = UUID.randomUUID().toString();
+        String notificationId = UUID.randomUUID().toString();
         String accessToken = "some-token";
         String deferredEndpoint = "https://example.com/deferred";
+        String notificationEndpoint = "https://example.com/notification";
         Instant now = Instant.now();
 
         // We'll capture exactly what is passed to the repository
@@ -61,8 +63,10 @@ class DeferredCredentialMetadataServiceImplTest {
                 processId,
                 credentialId,
                 transactionId,
+                notificationId,
                 accessToken,
-                deferredEndpoint
+                deferredEndpoint,
+                notificationEndpoint
         );
 
         // THEN

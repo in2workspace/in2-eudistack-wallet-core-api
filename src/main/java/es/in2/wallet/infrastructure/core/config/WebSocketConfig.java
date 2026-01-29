@@ -19,13 +19,18 @@ public class WebSocketConfig {
     }
 
     @Bean
-    public HandlerMapping webSocketMapping(PinRequestWebSocketHandler webSocketHandler) {
+    public HandlerMapping webSocketMapping(
+            PinRequestWebSocketHandler pinHandler,
+            NotificationRequestWebSocketHandler notificationHandler
+    ) {
         Map<String, WebSocketHandler> map = new HashMap<>();
-        map.put("/api/v1/pin", webSocketHandler);
+        map.put("/api/v1/pin", pinHandler);
+        map.put("/api/v1/notification", notificationHandler);
 
         SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
         mapping.setUrlMap(map);
         mapping.setOrder(-1);
         return mapping;
     }
+
 }

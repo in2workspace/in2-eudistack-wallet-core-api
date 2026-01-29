@@ -167,8 +167,10 @@ public class CredentialIssuanceEbsiWorkflowImpl implements CredentialIssuanceEbs
                                         processId,
                                         credentialUuid,
                                         credentialResponseWithStatus.credentialResponse().transactionId(),
+                                        credentialResponseWithStatus.credentialResponse().notificationId(),
                                         tokenResponse.accessToken(),
-                                        credentialIssuerMetadata.deferredCredentialEndpoint()
+                                        credentialIssuerMetadata.deferredCredentialEndpoint(),
+                                        credentialIssuerMetadata.notificationEndpoint()
                                 )
                                 .doOnNext(deferredUuid ->
                                         log.info("ProcessID: {} - Deferred credential metadata saved with UUID: {}", processId, deferredUuid)
