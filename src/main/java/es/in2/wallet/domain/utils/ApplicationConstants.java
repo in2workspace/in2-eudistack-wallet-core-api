@@ -50,4 +50,7 @@ public class ApplicationConstants {
     public static final String ENDPOINT_NOTIFICATION = "/api/v1/notification";
     public static final String ENDPOINT_HEALTH = "/health";
     public static final String ENDPOINT_PROMETHEUS = "/prometheus";
+    public static final String REVOCATION = "revocation";
+    public static final String BIT_STRING_STATUS_LIST_ENTRY = "BitstringStatusListEntry";
+    public static final String PLAIN_LIST_ENTITY = "PlainListEntity";
 }
