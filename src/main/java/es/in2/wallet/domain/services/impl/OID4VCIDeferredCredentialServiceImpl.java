@@ -39,6 +39,7 @@ public class OID4VCIDeferredCredentialServiceImpl implements OID4VCIDeferredCred
             CredentialIssuerMetadata credentialIssuerMetadata
     ) {
         return Mono.delay(Duration.ofSeconds(interval))
+                .doOnNext(t -> System.out.println("✅ Delay completat després de " + interval + " segons"))
                 .then(ensureValidToken(tokenInfo, tokenEndpoint))
                 .flatMap(validTokenInfo ->
                         webClient.centralizedWebClient()
