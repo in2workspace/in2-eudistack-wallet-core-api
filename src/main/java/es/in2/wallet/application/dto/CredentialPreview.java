@@ -5,7 +5,7 @@ import lombok.Builder;
 
 @Builder
 public record CredentialPreview(
-        @JsonProperty("issuer") String issuer,
+        @JsonProperty("powers") String powers,
         @JsonProperty("subjectName") String subjectName,
         @JsonProperty("organization") String organization,
         @JsonProperty("expirationDate") String expirationDate

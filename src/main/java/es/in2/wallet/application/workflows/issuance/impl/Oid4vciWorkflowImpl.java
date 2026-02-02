@@ -317,18 +317,12 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                     }
 
                     log.warn("ProcessID: {} - Decision timeout/failure. credentialId={}", processId, credentialId);
-                    return credentialService.deleteCredential(processId, credentialId, userId)
-                            .onErrorResume(e -> {
-                                log.warn("ProcessID: {} - Failed to delete credentialId={} on failure: {}",
-                                        processId, credentialId, e.getMessage(), e);
-                                return Mono.empty();
-                            })
-                            .then(notificationClientService.notifyIssuer(
+                    return notificationClientService.notifyIssuer(
                                     processId, issuerAccessToken, notificationId,
                                     NotificationEvent.CREDENTIAL_FAILURE,
                                     "Timeout waiting for user decision",
                                     credentialIssuerMetadata
-                            ));
+                            );
                 })
                 .doOnError(e -> log.error("ProcessID: {} - Detached decision flow error: {}", processId, e.getMessage(), e))
                 .subscribe();
@@ -372,10 +366,8 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
     private CredentialPreview mapVcToPreview(JsonNode vcJson) {
         JsonNode cs = vcJson.path("credentialSubject");
-        JsonNode issuerNode = cs.path("issuer").path("commonName");
-        String issuer = issuerNode.isMissingNode() || issuerNode.isNull()
-                ? null
-                : issuerNode.asText();
+        System.out.println("XIVATO: "+vcJson);
+        String powers = "";
 
         String subjectName = null;
         JsonNode mandatee = cs.path("mandate").path("mandatee");
@@ -398,7 +390,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
         String expirationDate = String.valueOf(vcJson.path("validUntil"));
 
         return new CredentialPreview(
-                issuer,
+                powers,
                 subjectName,
                 organization,
                 expirationDate
