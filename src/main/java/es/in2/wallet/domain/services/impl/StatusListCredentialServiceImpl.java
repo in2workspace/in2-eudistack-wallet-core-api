@@ -112,7 +112,7 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
         }
 
         int byteIndex = bitIndex / 8;
-        int bitInByte = bitIndex % 8;
+        int bitInByte = 7 - (bitIndex % 8);
         int mask = 1 << bitInByte;
 
         return (rawBytes[byteIndex] & mask) != 0;
