@@ -1,5 +1,6 @@
 package es.in2.wallet.application.workflows.issuance.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import es.in2.wallet.application.dto.*;
@@ -16,11 +17,8 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.Base64;
+import java.util.*;
 import java.time.Instant;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.UUID;
 
 import static es.in2.wallet.domain.utils.ApplicationUtils.getUserIdFromToken;
 
@@ -370,7 +368,8 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
         String subjectName = null;
         JsonNode mandatee = mandate.path("mandatee");
-        JsonNode power = mandate.path("power");
+        JsonNode powerNode = mandate.path("power");
+        List<CredentialPower> power = parsePower(powerNode);
         JsonNode firstNameNode = mandatee.path("firstName");
         JsonNode lastNameNode  = mandatee.path("lastName");
 
@@ -395,6 +394,23 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                 organization,
                 expirationDate
         );
+    }
+
+    private List<CredentialPower> parsePower(JsonNode powerNode) {
+        if (powerNode == null || powerNode.isMissingNode() || powerNode.isNull()) {
+            return Collections.emptyList();
+        }
+
+        try {
+            if (powerNode.isArray()) {
+                return objectMapper.convertValue(powerNode, new TypeReference<>() {
+                });
+            }
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
+
+        return Collections.emptyList();
     }
 
 
