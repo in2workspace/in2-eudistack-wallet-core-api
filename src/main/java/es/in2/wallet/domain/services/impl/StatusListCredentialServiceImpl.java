@@ -56,12 +56,6 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
         log.debug("StatusPurpose match OK. purpose='{}'", expectedPurpose);
     }
 
-    /**
-     * Parses a Status List Credential JWT (application/vc+jwt) and extracts:
-     * - issuer (may be null)
-     * - credentialSubject.statusPurpose (required)
-     * - credentialSubject.encodedList -> raw bitstring bytes
-     */
     public StatusListCredentialData parse(String jwtString) {
         if (jwtString == null || jwtString.isBlank()) {
             throw new StatusListCredentialException("JWT string cannot be blank");

@@ -39,7 +39,6 @@ public class OID4VCIDeferredCredentialServiceImpl implements OID4VCIDeferredCred
             CredentialIssuerMetadata credentialIssuerMetadata
     ) {
         return Mono.delay(Duration.ofSeconds(interval))
-                .doOnNext(t -> System.out.println("✅ Delay completat després de " + interval + " segons"))
                 .then(ensureValidToken(tokenInfo, tokenEndpoint))
                 .flatMap(validTokenInfo ->
                         webClient.centralizedWebClient()
@@ -100,17 +99,11 @@ public class OID4VCIDeferredCredentialServiceImpl implements OID4VCIDeferredCred
     }
 
     private Mono<TokenInfo> ensureValidToken(TokenInfo tokenInfo, String tokenUrl) {
-        System.out.println("HOLAAAA - valid token: token info : " + tokenInfo);
         long currentTime = Instant.now().getEpochSecond();
-        System.out.println("HOLAAAA - current time : " + currentTime);
         long expiry = tokenInfo.tokenObtainedAt() + tokenInfo.expiresIn();
-        System.out.println("HOLAAAA - tokenobtainedat : " + tokenInfo.tokenObtainedAt());
-        System.out.println("HOLAAAA - tokenInfo.expiresIn : " + tokenInfo.expiresIn());
-        System.out.println("HOLAAAA - expiriiiiyy : " + expiry);
         long safetyWindow = 10;
 
         boolean isAccessTokenValid = currentTime < (expiry - safetyWindow);
-        System.out.println("L'access token és vàlid: " + isAccessTokenValid);
         if (isAccessTokenValid) {
             return Mono.just(tokenInfo);
         }
