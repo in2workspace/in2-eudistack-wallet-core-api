@@ -370,7 +370,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
         String subjectName = null;
         JsonNode mandatee = mandate.path("mandatee");
-        JsonNode powers = mandate.path("power");
+        JsonNode power = mandate.path("power");
         JsonNode firstNameNode = mandatee.path("firstName");
         JsonNode lastNameNode  = mandatee.path("lastName");
 
@@ -390,7 +390,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
         String expirationDate = String.valueOf(vcJson.path("validUntil"));
 
         return new CredentialPreview(
-                powers,
+                power,
                 subjectName,
                 organization,
                 expirationDate
