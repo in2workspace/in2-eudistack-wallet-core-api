@@ -516,7 +516,7 @@ class Oid4vciWorkflowImplTest {
 
             org.junit.jupiter.api.Assertions.assertNotNull(preview);
             org.junit.jupiter.api.Assertions.assertNotNull(preview.power());
-            org.junit.jupiter.api.Assertions.assertTrue(preview.power().isEmpty(), "power debe ser emptyList() al fallar el mapeo");
+            org.junit.jupiter.api.Assertions.assertTrue(preview.power().isEmpty(), "power should be emptyList() when mapping fails");
         }
     }
 

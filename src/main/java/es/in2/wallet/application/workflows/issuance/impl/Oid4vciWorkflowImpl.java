@@ -408,7 +408,4 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
             return Collections.emptyList();
         }
     }
-
-
-
 }

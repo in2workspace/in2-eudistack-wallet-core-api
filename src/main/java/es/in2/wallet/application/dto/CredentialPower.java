@@ -10,6 +10,3 @@ public record CredentialPower(
         @JsonProperty("function") String function,
         @JsonProperty("action") List<String> action
 ) {}
-
-
-
