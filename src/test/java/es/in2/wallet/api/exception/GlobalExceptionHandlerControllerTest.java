@@ -1,9 +1,9 @@
 package es.in2.wallet.api.exception;
 
 import es.in2.wallet.application.dto.ApiErrorResponse;
+import es.in2.wallet.application.dto.GlobalErrorMessage;
 import es.in2.wallet.domain.exceptions.*;
 import es.in2.wallet.infrastructure.core.controller.GlobalExceptionHandlerController;
-import es.in2.wallet.application.dto.GlobalErrorMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -171,5 +171,28 @@ class GlobalExceptionHandlerControllerTest {
                 .expectNext(expectedResponse)
                 .verifyComplete();
     }
+
+    @Test
+    void statusListCredentialExceptionTest() {
+        String message = "status list failed";
+        String path = "/api/example";
+
+        StatusListCredentialException exception = new StatusListCredentialException(message);
+
+        when(request.getPath()).thenReturn(requestPath);
+        when(requestPath.toString()).thenReturn(path);
+
+        GlobalErrorMessage expectedResponse = GlobalErrorMessage.builder()
+                .title("StatusListCredentialException")
+                .message(message)
+                .path(path)
+                .build();
+
+        StepVerifier.create(globalExceptionHandlerController.statusListCredentialException(exception, request))
+                .expectNext(expectedResponse)
+                .verifyComplete();
+    }
+
+
 
 }
