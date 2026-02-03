@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import es.in2.wallet.application.dto.*;
 import es.in2.wallet.application.workflows.issuance.Oid4vciWorkflow;
+import es.in2.wallet.domain.exceptions.ParseErrorException;
 import es.in2.wallet.domain.services.*;
 import es.in2.wallet.infrastructure.core.config.NotificationRequestWebSocketHandler;
 import es.in2.wallet.infrastructure.core.config.WebSocketSessionManager;
@@ -397,6 +398,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
     }
 
     private List<CredentialPower> parsePower(JsonNode powerNode) {
+        System.out.println("Power Node: " + powerNode);
         if (powerNode == null || powerNode.isMissingNode() || powerNode.isNull()) {
             return Collections.emptyList();
         }
