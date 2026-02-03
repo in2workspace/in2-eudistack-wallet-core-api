@@ -366,10 +366,11 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
     private CredentialPreview mapVcToPreview(JsonNode vcJson) {
         JsonNode cs = vcJson.path("credentialSubject");
+        JsonNode mandate = cs.path("mandate");
 
         String subjectName = null;
-        JsonNode mandatee = cs.path("mandate").path("mandatee");
-        JsonNode powers = cs.path("mandate").path("power");
+        JsonNode mandatee = mandate.path("mandatee");
+        JsonNode powers = mandate.path("power");
         JsonNode firstNameNode = mandatee.path("firstName");
         JsonNode lastNameNode  = mandatee.path("lastName");
 
@@ -385,7 +386,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
             subjectName = subjectName.trim();
             if (subjectName.isBlank()) subjectName = null;
         }
-        String organization = String.valueOf(cs.path("mandate").path("mandator").path("organization"));
+        String organization = String.valueOf(mandate.path("mandator").path("organization"));
         String expirationDate = String.valueOf(vcJson.path("validUntil"));
 
         return new CredentialPreview(
