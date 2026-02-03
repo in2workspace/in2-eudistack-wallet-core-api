@@ -506,7 +506,7 @@ class Oid4vciWorkflowImplTest {
     }
 
     @Test
-    void execute_whenDecisionFailure_shouldDeleteCredential_andNotifyFailure() throws Exception {
+    void execute_whenDecisionFailure_shouldNotifyFailure() throws Exception {
         try (MockedStatic<ApplicationUtils> ignored = Mockito.mockStatic(ApplicationUtils.class)) {
 
             String processId = "processId";
@@ -591,16 +591,11 @@ class Oid4vciWorkflowImplTest {
             when(notificationRequestWebSocketHandler.getDecisionResponses(userIdStr))
                     .thenReturn(Flux.just("FAILURE"));
 
-            when(credentialService.deleteCredential(processId, credentialId, userIdStr))
-                    .thenReturn(Mono.empty());
-
             when(notificationClientService.notifyIssuer(anyString(), anyString(), anyString(), any(), anyString(), any()))
                     .thenReturn(Mono.empty());
 
             StepVerifier.create(credentialIssuanceServiceFacade.execute(processId, authorizationToken, qrContent))
                     .verifyComplete();
-
-            verify(credentialService).deleteCredential(processId, credentialId, userIdStr);
 
             verify(notificationClientService).notifyIssuer(
                     eq(processId),
