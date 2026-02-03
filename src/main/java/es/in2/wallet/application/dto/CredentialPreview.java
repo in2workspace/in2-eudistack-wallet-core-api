@@ -1,12 +1,13 @@
 package es.in2.wallet.application.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.Builder;
+
+import java.util.List;
 
 @Builder
 public record CredentialPreview(
-        @JsonProperty("power") JsonNode power,
+        @JsonProperty("power") List<CredentialPower> power,
         @JsonProperty("subjectName") String subjectName,
         @JsonProperty("organization") String organization,
         @JsonProperty("expirationDate") String expirationDate
