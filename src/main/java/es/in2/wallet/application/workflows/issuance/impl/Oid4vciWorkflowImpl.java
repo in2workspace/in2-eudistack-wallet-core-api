@@ -402,15 +402,11 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
         }
 
         try {
-            if (powerNode.isArray()) {
-                return objectMapper.convertValue(powerNode, new TypeReference<>() {
+            return objectMapper.convertValue(powerNode, new TypeReference<>() {
                 });
-            }
         } catch (Exception e) {
             return Collections.emptyList();
         }
-
-        return Collections.emptyList();
     }
 
 
