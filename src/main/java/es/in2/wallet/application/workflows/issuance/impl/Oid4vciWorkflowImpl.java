@@ -404,8 +404,7 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
         }
 
         try {
-            return objectMapper.convertValue(powerNode, new TypeReference<>() {
-                });
+            return objectMapper.readerForListOf(CredentialPower.class).readValue(powerNode);
         } catch (Exception e) {
             return Collections.emptyList();
         }
