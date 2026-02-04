@@ -221,4 +221,21 @@ public class GlobalExceptionHandlerController {
                 .instance(path)
                 .build());
     }
+
+    @ExceptionHandler(StatusListCredentialException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ResponseBody
+    public Mono<GlobalErrorMessage> statusListCredentialException(
+            StatusListCredentialException statusListCredentialException,
+            ServerHttpRequest request
+    ) {
+        String path = String.valueOf(request.getPath());
+
+        return Mono.just(GlobalErrorMessage.builder()
+                .title("StatusListCredentialException")
+                .message(statusListCredentialException.getMessage())
+                .path(path)
+                .build());
+    }
+
 }

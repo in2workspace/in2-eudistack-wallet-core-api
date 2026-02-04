@@ -25,13 +25,8 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
 
     private final ObjectMapper objectMapper;
 
-    /**
-     * Ensures that the status purpose in the Status List Credential matches
-     * the expected purpose from the subject credential.
-     */
     @Override
     public void validateStatusPurposeMatches(String statusListCredentialPurpose, String expectedPurpose) {
-        // Log at debug to avoid noisy logs on happy path
         log.debug("Validating statusPurpose match. expectedPurpose='{}', statusListCredentialPurpose='{}'",
                 expectedPurpose, statusListCredentialPurpose);
 
@@ -56,73 +51,93 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
         log.debug("StatusPurpose match OK. purpose='{}'", expectedPurpose);
     }
 
-    /**
-     * Parses a Status List Credential JWT (application/vc+jwt) and extracts:
-     * - issuer (may be null)
-     * - credentialSubject.statusPurpose (required)
-     * - credentialSubject.encodedList -> raw bitstring bytes
-     */
     public StatusListCredentialData parse(String jwtString) {
+        log.debug("Parsing StatusListCredential JWT (present={}, length={})",
+                jwtString != null, jwtString == null ? 0 : jwtString.length());
+
         if (jwtString == null || jwtString.isBlank()) {
+            log.warn("JWT string is null/blank");
             throw new StatusListCredentialException("JWT string cannot be blank");
         }
 
         final SignedJWT signedJWT;
         try {
             signedJWT = SignedJWT.parse(jwtString);
+            log.debug("JWT parsed successfully");
         } catch (ParseException e) {
+            log.warn("Invalid JWT format", e);
             throw new StatusListCredentialException("Invalid JWT format", e);
         }
 
         final String issuer;
         try {
             issuer = signedJWT.getJWTClaimsSet().getStringClaim("issuer");
+            log.debug("Issuer claim read successfully (present={})", issuer != null && !issuer.isBlank());
         } catch (Exception e) {
+            log.warn("Error reading 'issuer' claim", e);
             throw new StatusListCredentialException("Error reading 'issuer' claim", e);
         }
 
         final JsonNode claims = objectMapper.valueToTree(readClaimsSafely(signedJWT));
+        log.debug("JWT claims converted to JsonNode (isNull={})", claims == null || claims.isNull());
 
         final JsonNode credentialSubject = getRequiredObject(claims, "credentialSubject");
+        log.debug("credentialSubject extracted");
 
         final String statusPurpose = getRequiredText(credentialSubject, "statusPurpose");
+        log.debug("statusPurpose extracted='{}'", statusPurpose);
+
         final String encodedList = getRequiredText(credentialSubject, "encodedList");
+        log.debug("encodedList extracted (length={})", encodedList.length());
 
         final byte[] rawBytes = decodeEncodedListToRawBytes(encodedList);
+        log.debug("encodedList decoded and gunzipped (rawBytesLength={}, maxBits={})",
+                rawBytes.length, maxBits(rawBytes));
 
         return new StatusListCredentialData(issuer, statusPurpose, rawBytes);
     }
 
-    /**
-     * Returns true if the bit at bitIndex is set (LSB-first within each byte).
-     */
     public boolean isBitSet(byte[] rawBytes, int bitIndex) {
+        log.debug("Checking bit (bitIndex={}, rawBytesLength={})",
+                bitIndex, rawBytes == null ? null : rawBytes.length);
+
         if (rawBytes == null) {
+            log.warn("rawBytes is null");
             throw new StatusListCredentialException("rawBytes cannot be null");
         }
+
         if (bitIndex < 0) {
+            log.warn("bitIndex is negative (bitIndex={})", bitIndex);
             throw new StatusListCredentialException("bitIndex must be >= 0");
         }
 
         int maxBits = rawBytes.length * 8;
         if (bitIndex >= maxBits) {
+            log.warn("bitIndex out of range (bitIndex={}, maxBits={})", bitIndex, maxBits);
             throw new StatusListCredentialException(
                     "bitIndex out of range. maxBits=" + maxBits + ", bitIndex=" + bitIndex
             );
         }
 
         int byteIndex = bitIndex / 8;
-        int bitInByte = bitIndex % 8;
+        int bitInByte = 7 - (bitIndex % 8); // Use MSB-first bit ordering within each byte
         int mask = 1 << bitInByte;
 
-        return (rawBytes[byteIndex] & mask) != 0;
+        boolean result = (rawBytes[byteIndex] & mask) != 0;
+        log.debug("Bit check computed (byteIndex={}, bitInByte={}, mask=0x{}, isSet={})",
+                byteIndex, bitInByte, Integer.toHexString(mask), result);
+
+        return result;
     }
 
     public int maxBits(byte[] rawBytes) {
         if (rawBytes == null) {
+            log.warn("rawBytes is null when calculating maxBits");
             throw new StatusListCredentialException("rawBytes cannot be null");
         }
-        return rawBytes.length * 8;
+        int result = rawBytes.length * 8;
+        log.debug("maxBits computed (rawBytesLength={}, maxBits={})", rawBytes.length, result);
+        return result;
     }
 
     // ------------------------------------------------------------------------
@@ -133,16 +148,20 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
         try {
             return signedJWT.getJWTClaimsSet().toJSONObject();
         } catch (ParseException e) {
+            log.warn("Error reading JWT claims set", e);
             throw new StatusListCredentialException("Error reading JWT claims set", e);
         }
     }
 
     private JsonNode getRequiredObject(JsonNode parent, String field) {
         if (parent == null || parent.isNull()) {
+            log.warn("Missing JWT claims (parent is null)");
             throw new StatusListCredentialException("Missing JWT claims");
         }
         JsonNode node = parent.get(field);
         if (node == null || node.isNull() || !node.isObject()) {
+            log.warn("Missing or invalid object field '{}' (present={}, isNull={}, isObject={})",
+                    field, node != null, node == null || node.isNull(), node != null && node.isObject());
             throw new StatusListCredentialException("Missing or invalid '" + field + "'");
         }
         return node;
@@ -151,6 +170,7 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
     private String getRequiredText(JsonNode parent, String field) {
         JsonNode node = parent.get(field);
         if (node == null || !node.isTextual() || node.asText().isBlank()) {
+            log.warn("Missing or invalid text field '{}'", field);
             throw new StatusListCredentialException("Missing or invalid '" + field + "'");
         }
         return node.asText();
@@ -158,11 +178,13 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
 
     private byte[] decodeEncodedListToRawBytes(String encodedList) {
         if (encodedList == null || encodedList.isBlank()) {
+            log.warn("encodedList is null/blank");
             throw new StatusListCredentialException("encodedList cannot be blank");
         }
 
         String payload = encodedList.trim();
         if (payload.charAt(0) != 'u') {
+            log.warn("encodedList missing multibase prefix 'u' (firstChar='{}')", payload.charAt(0));
             throw new StatusListCredentialException(
                     "encodedList must start with multibase base64url prefix 'u'"
             );
@@ -172,6 +194,7 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
         try {
             gzipped = Base64.getUrlDecoder().decode(payload.substring(1));
         } catch (IllegalArgumentException e) {
+            log.warn("encodedList is not valid base64url", e);
             throw new StatusListCredentialException("encodedList is not valid base64url", e);
         }
 
@@ -179,6 +202,7 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
     }
 
     private byte[] gunzip(byte[] input) {
+        log.debug("Gunzipping content (inputLength={})", input == null ? null : input.length);
         try (ByteArrayInputStream bais = new ByteArrayInputStream(input);
              GZIPInputStream gzip = new GZIPInputStream(bais);
              ByteArrayOutputStream baos = new ByteArrayOutputStream()) {

@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [v2.0.7](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.7)
+### Changed
+- Read bitstring-encoded lists using MSB-first ordering.
+
 ## [v2.0.6](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.6)
 ### Changed
 - Changed Failure case in notification endpoint implementation
@@ -10,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v2.0.5](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.5)
 ### Added
-- Bitstring type credential status
+- Add support for BitstringStatusListEntry credential status type.
 
 ## [v2.0.4](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.4)
 ### Added
