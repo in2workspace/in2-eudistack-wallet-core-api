@@ -227,8 +227,7 @@ class StatusListCredentialServiceImplTest {
     }
 
     @Test
-    void isBitSet_returnsCorrectValue_lsbFirstWithinByteUsingImplementation() {
-        // Implementation uses bitInByte = 7 - (bitIndex % 8)
+    void isBitSet_returnsCorrectValue_msbFirstWithinByteUsingImplementation() {
         byte[] raw = new byte[]{(byte) 0b1000_0000};
 
         assertTrue(service.isBitSet(raw, 0));  // checks MSB with this implementation
