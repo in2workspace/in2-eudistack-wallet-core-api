@@ -230,7 +230,6 @@ public class GlobalExceptionHandlerController {
             ServerHttpRequest request
     ) {
         String path = String.valueOf(request.getPath());
-        log.debug("statusListCredentialException", statusListCredentialException);
 
         return Mono.just(GlobalErrorMessage.builder()
                 .title("StatusListCredentialException")
