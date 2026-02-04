@@ -87,7 +87,7 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
         StatusListCheckData data = dataOpt.get();
 
         // Legacy PlainListEntry
-        // It can be removed once the last credential of this type expires in DOME.
+        // TODO remove once the last credential of this type expires in DOME.
         if (PLAIN_LIST_ENTITY.equals(data.type())) {
             return handleLegacyPlainList(processId, credential, data, nonceCache);
         }
@@ -125,7 +125,7 @@ public class CheckAndUpdateStatusCredentialsWorkflowImpl implements CheckAndUpda
     }
 
     // Legacy PlainListEntry
-    // It can be removed once the last credential of this type expires in DOME.
+    // TODO: remove once the last credential of this type expires in DOME.
     private Flux<Credential> handleLegacyPlainList(
             String processId,
             Credential credential,
