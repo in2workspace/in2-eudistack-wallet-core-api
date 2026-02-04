@@ -16,11 +16,8 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.Base64;
+import java.util.*;
 import java.time.Instant;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.UUID;
 
 import static es.in2.wallet.domain.utils.ApplicationUtils.getUserIdFromToken;
 
@@ -317,18 +314,12 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
                     }
 
                     log.warn("ProcessID: {} - Decision timeout/failure. credentialId={}", processId, credentialId);
-                    return credentialService.deleteCredential(processId, credentialId, userId)
-                            .onErrorResume(e -> {
-                                log.warn("ProcessID: {} - Failed to delete credentialId={} on failure: {}",
-                                        processId, credentialId, e.getMessage(), e);
-                                return Mono.empty();
-                            })
-                            .then(notificationClientService.notifyIssuer(
+                    return notificationClientService.notifyIssuer(
                                     processId, issuerAccessToken, notificationId,
                                     NotificationEvent.CREDENTIAL_FAILURE,
                                     "Timeout waiting for user decision",
                                     credentialIssuerMetadata
-                            ));
+                            );
                 })
                 .doOnError(e -> log.error("ProcessID: {} - Detached decision flow error: {}", processId, e.getMessage(), e))
                 .subscribe();
@@ -372,13 +363,12 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
 
     private CredentialPreview mapVcToPreview(JsonNode vcJson) {
         JsonNode cs = vcJson.path("credentialSubject");
-        JsonNode issuerNode = cs.path("issuer").path("commonName");
-        String issuer = issuerNode.isMissingNode() || issuerNode.isNull()
-                ? null
-                : issuerNode.asText();
+        JsonNode mandate = cs.path("mandate");
 
         String subjectName = null;
-        JsonNode mandatee = cs.path("mandate").path("mandatee");
+        JsonNode mandatee = mandate.path("mandatee");
+        JsonNode powerNode = mandate.path("power");
+        List<CredentialPower> power = parsePower(powerNode);
         JsonNode firstNameNode = mandatee.path("firstName");
         JsonNode lastNameNode  = mandatee.path("lastName");
 
@@ -394,17 +384,26 @@ public class Oid4vciWorkflowImpl implements Oid4vciWorkflow {
             subjectName = subjectName.trim();
             if (subjectName.isBlank()) subjectName = null;
         }
-        String organization = String.valueOf(cs.path("mandate").path("mandator").path("organization"));
+        String organization = String.valueOf(mandate.path("mandator").path("organization"));
         String expirationDate = String.valueOf(vcJson.path("validUntil"));
 
         return new CredentialPreview(
-                issuer,
+                power,
                 subjectName,
                 organization,
                 expirationDate
         );
     }
 
+    private List<CredentialPower> parsePower(JsonNode powerNode) {
+        if (powerNode == null || powerNode.isMissingNode() || powerNode.isNull()) {
+            return Collections.emptyList();
+        }
 
-
+        try {
+            return objectMapper.readerForListOf(CredentialPower.class).readValue(powerNode);
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
+    }
 }
