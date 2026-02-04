@@ -189,7 +189,8 @@ class CheckAndUpdateStatusCredentialsWorkflowImplTest {
         when(credentialService.getCredentialStatus(credential)).thenReturn(status);
 
         // Different nonce => not revoked
-        WebClient fake = webClientReturningJson(HttpStatus.OK, "[{\"credentialNonce\":\"other-nonce\"}]");
+        WebClient fake = webClientReturningJson(HttpStatus.OK, "[{\"nonce\":\"other-nonce\"}]");
+
         when(webClient.centralizedWebClient()).thenReturn(fake);
 
         StepVerifier.create(checkAndUpdateStatusCredentialsWorkflow.executeForUser("process-id", "test"))
