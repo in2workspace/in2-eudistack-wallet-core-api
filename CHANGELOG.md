@@ -14,14 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v2.0.5](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.5)
 ### Added
-- Bitstring type credential status
-
-## [v2.0.6](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.6)
-### Changed
-- Read bitstring-encoded lists using MSB-first ordering.
-
-## [v2.0.5](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.5)
-### Added
 - Add support for BitstringStatusListEntry credential status type.
 
 ## [v2.0.4](https://github.com/in2workspace/in2-wallet-api/releases/tag/v2.0.4)
