@@ -27,7 +27,6 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static es.in2.wallet.domain.utils.ApplicationConstants.GLOBAL_STATE;
