@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static es.in2.wallet.domain.utils.ApplicationConstants.LEAR_CREDENTIAL_EMPLOYEE_SCOPE;
@@ -38,7 +37,6 @@ public class Oid4vpWorkflowImpl implements Oid4vpWorkflow {
     }
 
     @Override
-    // TODO: Refactor this method to return Flux<VerifiableCredential> instead of Mono<List<VerifiableCredential>>
     public Flux<VerifiableCredential> getSelectableCredentialsRequiredToBuildThePresentation(String processId, String authorizationToken, List<String> scope) {
         return getUserIdFromToken(authorizationToken)
                 .flatMapMany(userId -> Flux.fromIterable(scope)
