@@ -22,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -277,7 +278,7 @@ class EbsiVpTokenServiceImplTest {
 
             when(getUserIdFromToken(authorizationToken)).thenReturn(Mono.just("123"));
             when(objectMapper.readValue(anyString(), eq(PresentationDefinition.class))).thenReturn(presentationDefinition);
-            when(oid4vpWorkflow.getSelectableCredentialsRequiredToBuildThePresentation(eq(processId),eq(authorizationToken),anyList())).thenReturn(Mono.just(List.of()));
+            when(oid4vpWorkflow.getSelectableCredentialsRequiredToBuildThePresentation(eq(processId),eq(authorizationToken),anyList())).thenReturn(Flux.empty());
             when(presentationService.createSignedVerifiablePresentation(anyString(), anyString(), any(VcSelectorResponse.class), anyString(), anyString())).thenReturn(Mono.just("jwt VP"));
 
             ExchangeFunction exchangeFunction = mock(ExchangeFunction.class);
@@ -540,7 +541,7 @@ class EbsiVpTokenServiceImplTest {
 
             when(getUserIdFromToken(authorizationToken)).thenReturn(Mono.just("123"));
             when(objectMapper.readValue(anyString(), eq(PresentationDefinition.class))).thenReturn(presentationDefinition);
-            when(oid4vpWorkflow.getSelectableCredentialsRequiredToBuildThePresentation(eq(processId),eq(authorizationToken),anyList())).thenReturn(Mono.just(List.of()));
+            when(oid4vpWorkflow.getSelectableCredentialsRequiredToBuildThePresentation(eq(processId),eq(authorizationToken),anyList())).thenReturn(Flux.empty());
             when(presentationService.createSignedVerifiablePresentation(anyString(), anyString(), any(VcSelectorResponse.class), anyString(), anyString())).thenReturn(Mono.just("jwt VP"));
 
 

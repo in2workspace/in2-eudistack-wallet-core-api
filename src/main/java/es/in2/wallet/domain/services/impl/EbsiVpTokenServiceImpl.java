@@ -111,6 +111,7 @@ public class EbsiVpTokenServiceImpl implements EbsiVpTokenService {
      */
     private Mono<String> buildSignedJwtVerifiablePresentationByVcTypeList(String processId, String authorizationToken, List<String> vcTypeList, String nonce, AuthorisationServerMetadata authorisationServerMetadata) {
         return oid4vpWorkflow.getSelectableCredentialsRequiredToBuildThePresentation(processId,authorizationToken,vcTypeList)
+                                        .collectList()
                                         .flatMap(list -> {
                                             log.debug(list.toString());
                                             VcSelectorResponse vcSelectorResponse = VcSelectorResponse.builder().selectedVcList(list).build();
