@@ -49,7 +49,7 @@ public class Oid4vpWorkflowImpl implements Oid4vpWorkflow {
 
                             return  credentialService.getCredentialsByUserIdAndType(processId, userId, credentialType);
                         })
-                        .flatMapIterable(listaDeCredenciales -> listaDeCredenciales)
+                        .flatMapIterable(credentials -> credentials)
                 );
     }
 
