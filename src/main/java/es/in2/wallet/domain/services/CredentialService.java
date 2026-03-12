@@ -6,6 +6,7 @@ import es.in2.wallet.application.dto.CredentialStatus;
 import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.domain.entities.Credential;
 import es.in2.wallet.domain.enums.LifeCycleStatus;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -23,6 +24,6 @@ public interface CredentialService {
     Mono<Void> deleteCredential(String processId, String credentialId, String userId);
     Mono<Credential> updateCredentialEntityLifeCycleStatus(Credential existingCredential, LifeCycleStatus lifeCycleStatus);
 
-    Mono<List<VerifiableCredential>> getCredentialsByUserIdAndType(String processId, String userId, String requiredType);
+    Flux<VerifiableCredential> getCredentialsByUserIdAndType(String processId, String userId, String requiredType);
     Mono<String> getCredentialDataByIdAndUserId(String processId, String userId, String credentialId);
 }
