@@ -40,7 +40,7 @@ public class Oid4vpWorkflowImpl implements Oid4vpWorkflow {
     public Flux<VerifiableCredential> getSelectableCredentialsRequiredToBuildThePresentation(String processId, String authorizationToken, List<String> scope) {
         return getUserIdFromToken(authorizationToken)
                 .flatMapMany(userId -> Flux.fromIterable(scope)
-                        .flatMap(element -> {
+                        .concatMap(element -> {
                             // Verificar si el elemento es igual a LEAR_CREDENTIAL_EMPLOYEE_SCOPE
                             String credentialType = element.equals(LEAR_CREDENTIAL_EMPLOYEE_SCOPE)
                                     ? "LEARCredentialEmployee"
@@ -49,7 +49,6 @@ public class Oid4vpWorkflowImpl implements Oid4vpWorkflow {
 
                             return  credentialService.getCredentialsByUserIdAndType(processId, userId, credentialType);
                         })
-                        .flatMapIterable(credentials -> credentials)
                 );
     }
 

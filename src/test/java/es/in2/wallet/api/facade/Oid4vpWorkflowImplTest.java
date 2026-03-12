@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -70,7 +71,7 @@ class Oid4vpWorkflowImplTest {
                     .thenReturn(Mono.just("userId"));
 
             when(credentialService.getCredentialsByUserIdAndType(processId, "userId", "scope1"))
-                    .thenReturn(Mono.just(List.of(credentialsBasicInfo)));
+                    .thenReturn(Flux.just(credentialsBasicInfo));
 
             StepVerifier.create(attestationExchangeServiceFacade.processAuthorizationRequest(processId, authorizationToken, qrContent))
                     .expectNext(expectedVcSelectorRequest)
@@ -125,7 +126,7 @@ class Oid4vpWorkflowImplTest {
 
         when(credentialService.getCredentialsByUserIdAndType(
                 processId, "userId123", "unsupported-scope"))
-                .thenReturn(Mono.error(new VpFormatsNotSupportedException("At least one credential format is not supported by the wallet")));
+                .thenReturn(Flux.error(new VpFormatsNotSupportedException("At least one credential format is not supported by the wallet")));
 
         // Act & Assert
         StepVerifier.create(attestationExchangeServiceFacade.processAuthorizationRequest(processId, authorizationToken, qrContent))

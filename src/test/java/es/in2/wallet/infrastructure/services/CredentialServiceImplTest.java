@@ -531,11 +531,13 @@ class CredentialServiceImplTest {
                 .thenReturn(Flux.just(credential));
         when(objectMapper.readTree(jsonVc)).thenReturn(CredentialJsonNodeObjectMother.credentialLearEmployeeMandateDid());
 
-        Mono<List<VerifiableCredential>> result = credentialRepositoryService
+        // WHEN
+        Flux<VerifiableCredential> result = credentialRepositoryService
                 .getCredentialsByUserIdAndType(processId, userId, requiredType);
 
+        // THEN
         StepVerifier.create(result)
-                .assertNext(list -> assertEquals(1, list.size()))
+                .expectNextCount(1)
                 .verifyComplete();
     }
 
@@ -561,7 +563,7 @@ class CredentialServiceImplTest {
                 .thenReturn(Flux.just(credential));
 
         // WHEN
-        Mono<List<VerifiableCredential>> result = credentialRepositoryService
+        Flux<VerifiableCredential> result = credentialRepositoryService
                 .getCredentialsByUserIdAndType(processId, userId, requiredType);
 
         // THEN

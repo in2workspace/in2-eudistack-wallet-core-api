@@ -165,24 +165,20 @@ public class EbsiConfig {
      */
     private Mono<String> findOrCreateDidCredential(String userId) {
         String processId = UUID.randomUUID().toString();
-
         // Try to fetch an existing credential for the user with the given type (in JWT_VC format)
         return credentialService.getCredentialsByUserIdAndType(processId, userId, "ExampleCredential")
-                .flatMap(credentials -> {
-                    // If we found some credential(s), extract the DID from the first
-                    if (!credentials.isEmpty()) {
-                        String firstCredId = credentials.get(0).id(); // the "id" field in CredentialsBasicInfo
-                        return credentialService.extractDidFromCredential(processId, firstCredId, userId);
-                    }
-                    // If none found, generate new DID + create new credential
-                    return createNewDidAndCredential(processId, userId);
+                .next()
+                .flatMap(firstCredential -> {
+                    // We have the first element directly, no need to check if the list is empty
+                    String firstCredId = firstCredential.id();
+                    return credentialService.extractDidFromCredential(processId, firstCredId, userId);
                 })
-                // If no credentials exist, the above code moves to create them
-                // If there's an error "NoSuchVerifiableCredentialException", we also create a new one
+                // If the service throws an exception because none were found, we create a new one
                 .onErrorResume(NoSuchVerifiableCredentialException.class, ex -> {
                     log.info("No credential found for userId={}, type={}. Creating new DID...", userId, "ExampleCredential");
                     return createNewDidAndCredential(processId, userId);
-                });
+                })
+                .switchIfEmpty(Mono.defer(() -> createNewDidAndCredential(processId, userId)));
     }
 
     /**
