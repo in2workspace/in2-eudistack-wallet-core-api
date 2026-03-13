@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import es.in2.wallet.application.dto.VerifiableCredential;
 import es.in2.wallet.application.ports.AppConfig;
+import es.in2.wallet.domain.exceptions.NoSuchVerifiableCredentialException;
 import es.in2.wallet.domain.services.CredentialService;
 import es.in2.wallet.domain.services.DidKeyGeneratorService;
 import es.in2.wallet.domain.services.UserService;
@@ -19,10 +20,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -115,7 +116,7 @@ class EbsiConfigTest {
                 .id("urn:entities:credential:exampleCredential-xyz")
                 .build();
         when(credentialService.getCredentialsByUserIdAndType(anyString(), eq(userId), eq("ExampleCredential")))
-                .thenReturn(Mono.just(List.of(existingCredInfo)));
+                .thenReturn(Flux.just(existingCredInfo));
 
         // So we extract the DID from that credential
         when(credentialService.extractDidFromCredential(anyString(), eq(existingCredInfo.id()), eq(userId)))
@@ -158,7 +159,7 @@ class EbsiConfigTest {
         // We mock 'getCredentialsByUserIdAndType' to throw a NoSuchVerifiableCredentialException
         // or return an empty list. Let's do empty list for simplicity:
         when(credentialService.getCredentialsByUserIdAndType(anyString(), eq(userId), eq("ExampleCredential")))
-                .thenReturn(Mono.just(List.of()));
+                .thenReturn(Flux.error(new NoSuchVerifiableCredentialException("No credentials found")));
 
         // Then we generate a new DID
         when(didKeyGeneratorService.generateDidKeyJwkJcsPub())

@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static es.in2.wallet.domain.utils.ApplicationConstants.LEAR_CREDENTIAL_EMPLOYEE_SCOPE;
@@ -33,15 +32,15 @@ public class Oid4vpWorkflowImpl implements Oid4vpWorkflow {
                 .flatMap(jwtAuthorizationRequest -> verifierValidationService.verifyIssuerOfTheAuthorizationRequest(processId, jwtAuthorizationRequest))
                 .flatMap(jwtAuthorizationRequest -> authorizationRequestService.getAuthorizationRequestFromJwtAuthorizationRequestJWT(processId, jwtAuthorizationRequest))
                 .flatMap(authorizationRequest -> getSelectableCredentialsRequiredToBuildThePresentation(processId, authorizationToken, authorizationRequest.scope())
+                        .collectList()
                         .flatMap(credentials -> buildSelectableVCsRequest(authorizationRequest,credentials)));
     }
 
     @Override
-    // TODO: Refactor this method to return Flux<VerifiableCredential> instead of Mono<List<VerifiableCredential>>
-    public Mono<List<VerifiableCredential>> getSelectableCredentialsRequiredToBuildThePresentation(String processId, String authorizationToken, List<String> scope) {
+    public Flux<VerifiableCredential> getSelectableCredentialsRequiredToBuildThePresentation(String processId, String authorizationToken, List<String> scope) {
         return getUserIdFromToken(authorizationToken)
-                .flatMap(userId -> Flux.fromIterable(scope)
-                        .flatMap(element -> {
+                .flatMapMany(userId -> Flux.fromIterable(scope)
+                        .concatMap(element -> {
                             // Verificar si el elemento es igual a LEAR_CREDENTIAL_EMPLOYEE_SCOPE
                             String credentialType = element.equals(LEAR_CREDENTIAL_EMPLOYEE_SCOPE)
                                     ? "LEARCredentialEmployee"
@@ -49,12 +48,6 @@ public class Oid4vpWorkflowImpl implements Oid4vpWorkflow {
 
 
                             return  credentialService.getCredentialsByUserIdAndType(processId, userId, credentialType);
-                        })
-                        .collectList()  // This will collect all lists into a single list
-                        .flatMap(lists -> {
-                            List<VerifiableCredential> allCredentials = new ArrayList<>();
-                            lists.forEach(allCredentials::addAll); // Combine all lists into one
-                            return Mono.just(allCredentials);
                         })
                 );
     }

@@ -23,6 +23,7 @@ import org.apache.commons.compress.compressors.CompressorInputStream;
 import org.apache.commons.compress.compressors.CompressorStreamFactory;
 import org.apache.commons.io.IOUtils;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.ByteArrayInputStream;
@@ -288,8 +289,7 @@ public class CredentialServiceImpl implements CredentialService {
     // Filter credentials by user AND type in JWT_VC format
     // ---------------------------------------------------------------------
     @Override
-    // TODO: Refactor this method to return Flux<VerifiableCredential> instead of Mono<List<VerifiableCredential>>
-    public Mono<List<VerifiableCredential>> getCredentialsByUserIdAndType(
+    public Flux<VerifiableCredential> getCredentialsByUserIdAndType(
             String processId,
             String userId,
             String requiredType
@@ -311,17 +311,11 @@ public class CredentialServiceImpl implements CredentialService {
                         return Mono.empty();
                     }
                 })
-                .collectList()
-                .flatMap(credentialsInfo -> {
-                    if (credentialsInfo.isEmpty()) {
-                        return Mono.error(new NoSuchVerifiableCredentialException(
-                                "No credentials found for userId=" + userId
-                                        + " with type=" + requiredType
-                                        + " in JWT_VC format."
-                        ));
-                    }
-                    return Mono.just(credentialsInfo);
-                });
+                .switchIfEmpty(Flux.error(new NoSuchVerifiableCredentialException(
+                        "No credentials found for userId=" + userId
+                                + " with type=" + requiredType
+                                + " in JWT_VC format."
+                )));
     }
 
     // ---------------------------------------------------------------------
